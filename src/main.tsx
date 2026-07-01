@@ -1,7 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
-import { DemoSource } from './sources/demo'
 import { MangaDexSource } from './sources/mangadex'
 import { LelMangaSource } from './sources/lelmanga'
 import { DemonicScansSource } from './sources/demonicscans'
@@ -29,15 +28,16 @@ applyAccent(initialSettings.accentColor)
 // ----------------------------------------------------------------------------
 
 // 1. Sources STATIQUES — disponibles synchroniquement, pas de dépendance disque.
-SOURCE_REGISTRY['demo'] = new DemoSource()
-SOURCE_REGISTRY['mangadex'] = new MangaDexSource()
+// L'ordre d'insertion pilote l'ordre d'affichage dans « Parcourir »
+// (Object.values(SOURCE_REGISTRY)). Mangas Origines en tête, MangaDex en dernier.
+SOURCE_REGISTRY['mangasorigines'] = new MangasOriginesSource()
 SOURCE_REGISTRY['lelmanga'] = new LelMangaSource()
 SOURCE_REGISTRY['demonicscans'] = new DemonicScansSource()
-SOURCE_REGISTRY['mangasorigines'] = new MangasOriginesSource()
 SOURCE_REGISTRY['pantheonscan'] = new PantheonScanSource()
 SOURCE_REGISTRY['mangascantrad'] = new MangaScantradSource()
 SOURCE_REGISTRY['sushiscan'] = new SushiScanSource()
 SOURCE_REGISTRY['scanmanga'] = new ScanMangaSource()
+SOURCE_REGISTRY['mangadex'] = new MangaDexSource()
 
 // 2. Sources EXTERNES (dossier APPDATA) — chargement asynchrone. On les attend
 // pour qu'elles soient disponibles dans le sélecteur Browse dès le 1er render.

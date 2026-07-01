@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { getVersion } from '@tauri-apps/api/app'
 import { listen } from '@tauri-apps/api/event'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { useTranslation } from 'react-i18next'
@@ -523,14 +524,10 @@ function SourcesTab() {
               <span
                 className={[
                   'rounded-full px-2 py-0.5 text-[10px]',
-                  external
-                    ? 'bg-accent/15 text-accent'
-                    : source.id === 'demo'
-                      ? 'bg-fill/10 text-content-3'
-                      : 'bg-fill/10 text-content-3',
+                  external ? 'bg-accent/15 text-accent' : 'bg-fill/10 text-content-3',
                 ].join(' ')}
               >
-                {external ? 'Installée' : source.id === 'demo' ? 'Demo' : 'Intégrée'}
+                {external ? 'Installée' : 'Intégrée'}
               </span>
               {external ? (
                 <button
@@ -808,6 +805,14 @@ function BackupTab() {
 function AdvancedTab() {
   const { t } = useTranslation()
   const [logs, setLogs] = useState<string | null>(null)
+  // Vraie version de l'app (depuis tauri.conf.json embarqué dans le binaire),
+  // et non une chaîne codée en dur qui se désynchronise à chaque mise à jour.
+  const [appVersion, setAppVersion] = useState('')
+  useEffect(() => {
+    getVersion()
+      .then(setAppVersion)
+      .catch(() => setAppVersion(''))
+  }, [])
 
   async function clearCache() {
     await invoke('clear_cache').catch(() => {})
@@ -866,7 +871,9 @@ function AdvancedTab() {
         <h3 className="py-1 text-xs font-semibold uppercase text-content-3">
           {t('settings.about')}
         </h3>
-        <p className="py-1 text-sm text-content-2">MangaDesk v0.1.0</p>
+        <p className="py-1 text-sm text-content-2">
+          MangaDesk{appVersion ? ` v${appVersion}` : ''}
+        </p>
         <p className="text-xs text-content-4">
           Tauri 2 · React 18 · SQLite. Licences open source des dépendances incluses
           dans leurs paquets respectifs.

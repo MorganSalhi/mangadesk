@@ -113,7 +113,6 @@ fn main() {
                      (id, name, lang, base_url, version, is_nsfw, installed_at) \
                      VALUES \
                        ('mangadex', 'MangaDex', 'en', 'https://mangadex.org', '1.0.0', 0, ?), \
-                       ('demo', 'Demo', 'en', '', '1.0.0', 0, ?), \
                        ('lelmanga', 'LelManga', 'fr', 'https://www.lelmanga.com', '1.0.0', 0, ?), \
                        ('demonicscans', 'DemonicScans', 'en', 'https://demonicscans.org', '1.0.0', 0, ?), \
                        ('mangasorigines', 'Mangas Origines', 'fr', 'https://mangas-origines.fr', '1.0.0', 0, ?), \
@@ -122,7 +121,6 @@ fn main() {
                        ('sushiscan', 'Sushi-Scan', 'fr', 'https://sushiscan.net', '1.0.0', 1, ?), \
                        ('scanmanga', 'Scan-Manga', 'fr', 'https://m.scan-manga.com', '1.0.0', 1, ?)",
                 )
-                .bind(now)
                 .bind(now)
                 .bind(now)
                 .bind(now)

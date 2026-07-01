@@ -1,6 +1,6 @@
 [package]
 name = "mangadesk"
-version = "0.2.0"
+version = "0.3.0"
 description = "MangaDesk — lecteur de manga desktop"
 edition = "2021"
 

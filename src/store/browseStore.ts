@@ -13,8 +13,8 @@ interface BrowseState {
 }
 
 export const useBrowseStore = create<BrowseState>((set) => ({
-  // Source réseau par défaut (cf. SOURCE_REGISTRY dans main.tsx).
-  activeSourceId: 'mangadex',
+  // Source réseau par défaut à l'ouverture (cf. SOURCE_REGISTRY dans main.tsx).
+  activeSourceId: 'mangasorigines',
   query: '',
   setActiveSourceId: (id) => set({ activeSourceId: id }),
   setQuery: (query) => set({ query }),
