@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tokens de thème (canaux RGB). :root = thème clair (défaut), .dark = sombre.
+   La classe `.dark` est posée sur <html> par src/lib/appearance.ts. */
+:root {
+  color-scheme: light;
+  /* Accent (#6c8cff) — identique aux deux thèmes, surchargé via les Paramètres. */
+  --color-accent: 108 140 255;
+
+  --surface: 241 243 245;
+  --surface-raised: 255 255 255;
+  --surface-sunken: 231 233 238;
+  --content: 15 23 42;
+  --content-2: 51 65 85;
+  --content-3: 71 85 105;
+  --content-4: 100 116 139;
+  --line: 0 0 0;
+  --fill: 0 0 0;
+}
+
+.dark {
+  color-scheme: dark;
+  --surface: 27 29 36;
+  --surface-raised: 35 38 47;
+  --surface-sunken: 21 23 29;
+  --content: 241 245 249;
+  --content-2: 203 213 225;
+  --content-3: 148 163 184;
+  --content-4: 100 116 139;
+  --line: 255 255 255;
+  --fill: 255 255 255;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  @apply bg-surface text-content antialiased;
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+}
+
+/* Lecteur webtoon : masque la scrollbar latérale (le scroll au pavé/molette
+   reste actif). La progression se fait via le slider vertical latéral. */
+.webtoon-container {
+  scrollbar-width: none;
+}
+.webtoon-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* Slider vertical du lecteur webtoon. `slider-vertical` (WebKit/Chrome ≤120, =
+   notre WebView2) met le max en haut ; on inverse la valeur côté JS pour que le
+   haut = page 1 et que glisser vers le bas avance dans le chapitre. */
+.reader-vslider {
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  width: 6px;
+  cursor: pointer;
+}
