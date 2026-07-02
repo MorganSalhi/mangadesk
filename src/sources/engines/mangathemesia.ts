@@ -1,6 +1,8 @@
 import type {
   Chapter,
-  Filter,
+  FilterOption,
+  FilterValues,
+  SourceFilterDef,
   Manga,
   MangaListPage,
   MangaPreview,
@@ -8,6 +10,7 @@ import type {
   Source,
 } from '../../types'
 import { createTransport, type Transport } from './cfTransport'
+import { probeMaxPage } from './randomCatalog'
 
 // ============================================================================
 // Moteur MangaThemesia (WP-Mangastream / « ts_reader ») partagé.
@@ -64,14 +67,35 @@ function parseStatus(text: string): Manga['status'] {
   return 'unknown'
 }
 
-/** Valeur d'une ligne d'`.infotable` par libellé (`:contains` n'existe pas en CSS DOM). */
-function infotableValue(doc: Document, label: string): string {
-  const rows = Array.from(doc.querySelectorAll('.infotable tr'))
-  for (const tr of rows) {
-    if ((tr.textContent ?? '').toLowerCase().includes(label.toLowerCase())) {
+/**
+ * Valeur d'une info de série par libellé, sur les trois structures Themesia
+ * rencontrées : `.infotable tr` (td libellé / td valeur — ex. Sushi-Scan),
+ * `.imptdt` (« Status <i>Ongoing</i> » — ex. LelManga) et `.fmed`
+ * (`<b>Libellé</b><span>valeur</span>`). Plusieurs libellés candidats (FR/EN).
+ */
+function seriesInfoValue(doc: Document, labels: string[]): string {
+  const needles = labels.map((l) => l.toLowerCase())
+  const matches = (text: string) => {
+    const t = text.toLowerCase()
+    return needles.some((n) => t.includes(n))
+  }
+  for (const tr of Array.from(doc.querySelectorAll('.infotable tr'))) {
+    if (matches(tr.textContent ?? '')) {
       const cells = tr.querySelectorAll('td')
       const last = cells[cells.length - 1]
       if (last) return last.textContent?.trim() ?? ''
+    }
+  }
+  for (const el of Array.from(doc.querySelectorAll('.imptdt'))) {
+    if (matches(el.textContent ?? '')) {
+      const value = el.querySelector('i, a')?.textContent?.trim()
+      if (value) return value
+    }
+  }
+  for (const el of Array.from(doc.querySelectorAll('.fmed'))) {
+    if (matches(el.querySelector('b')?.textContent ?? '')) {
+      const value = el.querySelector('span')?.textContent?.trim()
+      if (value) return value
     }
   }
   return ''
@@ -79,6 +103,25 @@ function infotableValue(doc: Document, label: string): string {
 
 function lastSegment(href: string): string {
   return href.split(/[?#]/)[0].split('/').filter(Boolean).pop() ?? ''
+}
+
+// --- Filtres (session 13) ----------------------------------------------------
+
+/** Tris standards du paramètre `order` MangaThemesia. */
+const THEMESIA_SORT_OPTIONS: FilterOption[] = [
+  { value: 'popular', label: 'Popularité' },
+  { value: 'update', label: 'Dernières mises à jour' },
+  { value: 'latest', label: 'Ajout le plus récent' },
+  { value: 'title', label: 'Titre (A→Z)' },
+  { value: 'titlereverse', label: 'Titre (Z→A)' },
+]
+
+function strList(v: FilterValues[string]): string[] {
+  return Array.isArray(v) ? v : []
+}
+
+function str(v: FilterValues[string]): string {
+  return typeof v === 'string' ? v.trim() : ''
 }
 
 export class MangaThemesiaSource implements Source {
@@ -89,7 +132,12 @@ export class MangaThemesiaSource implements Source {
   readonly version: string
   readonly isNsfw: boolean
   readonly supportsLatest = true
-  readonly filters: Filter[] = []
+  filters: SourceFilterDef[]
+
+  /** Promesse mémoïsée de chargement des filtres dynamiques (genres du site). */
+  private dynamicFiltersPromise: Promise<SourceFilterDef[]> | null = null
+  /** Nombre de pages du catalogue (cache session, pour getRandom). */
+  private catalogPageCount: number | null = null
 
   protected readonly dir: string
   protected readonly authorLabel: string
@@ -110,15 +158,175 @@ export class MangaThemesiaSource implements Source {
       htmlVia: config.htmlVia,
       userAgent: config.userAgent,
     })
+    this.filters = this.staticFilterDefs()
   }
 
-  async search(query: string, page: number, _filters: Filter[]): Promise<MangaListPage> {
+  // --- Filtres ---------------------------------------------------------------
+
+  /** Définitions disponibles sans requête réseau (le tri seul). */
+  protected staticFilterDefs(): SourceFilterDef[] {
+    return [
+      {
+        id: 'sort',
+        name: 'Trier par',
+        type: 'select',
+        default: 'popular',
+        options: THEMESIA_SORT_OPTIONS,
+      },
+    ]
+  }
+
+  /**
+   * Complète les définitions depuis le formulaire de filtres de l'archive
+   * (`{dir}/`) : genres (`genre[]`, ids propres au site), statut, type.
+   * ⚠️ Limitation MangaThemesia : ces filtres ne s'appliquent qu'au listing,
+   * pas à la recherche textuelle (`?s=`) — géré dans `search()`.
+   */
+  async getFilters(): Promise<SourceFilterDef[]> {
+    this.dynamicFiltersPromise ??= (async () => {
+      const html = await this.transport.fetchHtml(`${this.baseUrl}${this.dir}/`)
+      const doc = new DOMParser().parseFromString(html, 'text/html')
+
+      const labelFor = (input: Element): string => {
+        const id = input.getAttribute('id')
+        const label = id ? doc.querySelector(`label[for="${id}"]`) : null
+        return (
+          label?.textContent?.trim() ||
+          input.parentElement?.textContent?.trim() ||
+          input.getAttribute('value') ||
+          ''
+        )
+      }
+      const inputOptions = (name: string): FilterOption[] => {
+        const seen = new Set<string>()
+        const options: FilterOption[] = []
+        doc.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
+          const value = input.getAttribute('value') ?? ''
+          if (seen.has(value)) return
+          seen.add(value)
+          options.push({ value, label: labelFor(input) || value || 'Tous' })
+        })
+        return options
+      }
+
+      const defs: SourceFilterDef[] = []
+
+      // Tri : options du site si présentes (radios name=order), sinon standard.
+      const orders = inputOptions('order')
+      defs.push({
+        id: 'sort',
+        name: 'Trier par',
+        type: 'select',
+        default: 'popular',
+        options: orders.length > 1 ? orders : THEMESIA_SORT_OPTIONS,
+      })
+
+      const genres = inputOptions('genre[]')
+      if (genres.length > 0) {
+        defs.push({ id: 'genres', name: 'Genres', type: 'multiselect', options: genres })
+      }
+      const statuses = inputOptions('status')
+      if (statuses.length > 1) {
+        defs.push({
+          id: 'status',
+          name: 'Statut',
+          type: 'select',
+          default: '',
+          options: statuses,
+        })
+      }
+      const types = inputOptions('type')
+      if (types.length > 1) {
+        defs.push({ id: 'type', name: 'Type', type: 'select', default: '', options: types })
+      }
+
+      this.filters = defs
+      return defs
+    })()
+    try {
+      return await this.dynamicFiltersPromise
+    } catch (err) {
+      this.dynamicFiltersPromise = null
+      throw err
+    }
+  }
+
+  async search(query: string, page: number, filters: FilterValues): Promise<MangaListPage> {
     const q = query.trim()
-    const url = q
-      ? `${this.baseUrl}/page/${page}?s=${encodeURIComponent(q)}`
-      : `${this.baseUrl}${this.dir}/?page=${page}&order=popular`
+    if (q) {
+      // La recherche textuelle Themesia ne supporte pas les autres filtres.
+      const html = await this.transport.fetchHtml(
+        `${this.baseUrl}/page/${page}?s=${encodeURIComponent(q)}`,
+      )
+      return this.parseMangaList(html, page)
+    }
+
+    const params = new URLSearchParams()
+    params.set('page', String(page))
+    params.set('order', str(filters.sort) || 'popular')
+    const status = str(filters.status)
+    if (status) params.set('status', status)
+    const type = str(filters.type)
+    if (type) params.set('type', type)
+    let url = `${this.baseUrl}${this.dir}/?${params.toString()}`
+    for (const g of strList(filters.genres)) {
+      url += `&genre%5B%5D=${encodeURIComponent(g)}`
+    }
     const html = await this.transport.fetchHtml(url)
     return this.parseMangaList(html, page)
+  }
+
+  /**
+   * Manga aléatoire : page aléatoire du catalogue, puis entrée aléatoire.
+   * Le nombre de pages vient de la pagination (Themesia lie la dernière page,
+   * ex. « 1 2 … 8 ») ; si elle n'expose pas de numéros mais qu'une page
+   * suivante existe, on sonde (cf. randomCatalog) pour couvrir TOUT le
+   * catalogue et pas seulement les têtes d'affiche.
+   */
+  async getRandom(): Promise<MangaPreview> {
+    if (this.catalogPageCount == null) {
+      const html = await this.transport.fetchHtml(
+        `${this.baseUrl}${this.dir}/?page=1&order=popular`,
+      )
+      const doc = new DOMParser().parseFromString(html, 'text/html')
+      let max = 1
+      doc.querySelectorAll('.pagination a.page-numbers, .pagination a, .hpage a').forEach((a) => {
+        const n = parseInt((a.textContent ?? '').replace(/[^\d]/g, ''), 10)
+        if (Number.isFinite(n) && n > max) max = n
+      })
+      const hasNext = !!doc.querySelector('.pagination .next, .hpage .r')
+      if (max === 1 && hasNext) {
+        max = await probeMaxPage(
+          async (page) =>
+            this.parseMangaList(
+              await this.transport.fetchHtml(
+                `${this.baseUrl}${this.dir}/?page=${page}&order=popular`,
+              ),
+              page,
+            ).mangas.length,
+          { knownMax: 1 },
+        )
+      }
+      this.catalogPageCount = max
+    }
+
+    const total = Math.max(1, this.catalogPageCount)
+    const page = 1 + Math.floor(Math.random() * total)
+    let list = this.parseMangaList(
+      await this.transport.fetchHtml(`${this.baseUrl}${this.dir}/?page=${page}&order=popular`),
+      page,
+    )
+    if (list.mangas.length === 0 && page !== 1) {
+      this.catalogPageCount = null
+      list = this.parseMangaList(
+        await this.transport.fetchHtml(`${this.baseUrl}${this.dir}/?page=1&order=popular`),
+        1,
+      )
+    }
+    if (list.mangas.length === 0) {
+      throw new Error(`${this.name}: catalogue vide ou inaccessible.`)
+    }
+    return list.mangas[Math.floor(Math.random() * list.mangas.length)]
   }
 
   async getLatest(page: number): Promise<MangaListPage> {
@@ -181,8 +389,8 @@ export class MangaThemesiaSource implements Source {
     const genres = Array.from(doc.querySelectorAll('div.gnr a, .mgen a, .seriestugenre a'))
       .map((el) => el.textContent?.trim() ?? '')
       .filter(Boolean)
-    const author = infotableValue(doc, this.authorLabel)
-    const statusText = infotableValue(doc, this.statusLabel)
+    const author = seriesInfoValue(doc, [this.authorLabel, 'Author', 'Auteur'])
+    const statusText = seriesInfoValue(doc, [this.statusLabel, 'Status', 'Statut'])
 
     return {
       id: mangaId,
@@ -214,7 +422,11 @@ export class MangaThemesiaSource implements Source {
         a.textContent?.trim() ||
         ''
       const dateText = item.querySelector('.chapterdate')?.textContent?.trim() ?? ''
-      const numMatch = (name || chapterSlug).match(/([\d]+(?:[.,][\d]+)?)/)
+      // Numéro : attribut data-num (fiable, ex. LelManga), sinon libellé/slug.
+      const dataNum = item.getAttribute('data-num') ?? ''
+      const numMatch =
+        dataNum.match(/([\d]+(?:[.,][\d]+)?)/) ??
+        (name || chapterSlug).match(/([\d]+(?:[.,][\d]+)?)/)
       const number = numMatch ? parseFloat(numMatch[1].replace(',', '.')) : items.length - idx
       chapters.push({
         id: `${mangaId}:${chapterSlug}`,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   createHashRouter,
   NavLink,
@@ -17,6 +17,8 @@ import Settings from './pages/Settings'
 import Stats from './pages/Stats'
 import Reader from './pages/Reader'
 import MangaDetail from './pages/MangaDetail'
+import Calendar from './pages/Calendar'
+import Modal from './components/ui/Modal'
 import { SOURCE_REGISTRY } from './hooks/useSource'
 import { useDownloadStore } from './store/downloadStore'
 import { useReaderStore } from './store/readerStore'
@@ -54,6 +56,7 @@ const ICONS = {
   updates: 'M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0',
   history: 'M3 12a9 9 0 1 0 9-9 9 9 0 0 0-9 9ZM3 12H1m11-5v5l3 2',
   downloads: 'M12 3v12m0 0l-4-4m4 4l4-4M5 21h14',
+  calendar: 'M8 2v4M16 2v4M3 8h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z',
   stats: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
   settings:
     'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 2h-4l-.3 2.5a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L4.1 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.5h4l.3-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1Z',
@@ -104,6 +107,7 @@ function Sidebar() {
       end: false,
       badge: 0,
     },
+    { to: '/calendar', label: 'Calendrier', icon: ICONS.calendar, end: false, badge: 0 },
     { to: '/stats', label: 'Statistiques', icon: ICONS.stats, end: false, badge: 0 },
     { to: '/settings', label: t('nav.settings'), icon: ICONS.settings, end: false, badge: 0 },
   ]
@@ -239,6 +243,71 @@ function useGlobalEffects() {
   }, [updateInterval])
 }
 
+/**
+ * Confirmation de fermeture. La croix de la fenêtre est interceptée côté Rust
+ * (`on_window_event` → prevent_close + event `app:close-requested`) : sans
+ * cela, les WebViews solveurs Cloudflare cachés maintiennent le process en
+ * vie en arrière-plan. La sortie effective passe par `exit_app` (app.exit),
+ * qui termine tout, fenêtres cachées comprises.
+ */
+function ExitConfirm() {
+  const [visible, setVisible] = useState(false)
+  const confirmBeforeExit = useSettingsStore((s) => s.confirmBeforeExit)
+  const activeDownloads = useDownloadStore((s) =>
+    s.queue.some((t) => t.status === 'downloading' || t.status === 'queued'),
+  )
+  // Le listener est monté une seule fois : il lit le réglage via une ref pour
+  // toujours voir la valeur courante.
+  const confirmRef = useRef(confirmBeforeExit)
+  useEffect(() => {
+    confirmRef.current = confirmBeforeExit
+  }, [confirmBeforeExit])
+
+  useEffect(() => {
+    const unlisten = listen('app:close-requested', () => {
+      if (confirmRef.current) setVisible(true)
+      else void invoke('exit_app').catch(() => {})
+    })
+    return () => {
+      void unlisten.then((fn) => fn()).catch(() => {})
+    }
+  }, [])
+
+  if (!visible) return null
+  return (
+    <Modal title="Quitter MangaDesk ?" onClose={() => setVisible(false)}>
+      <p className="text-sm text-content-3">
+        L’application va se fermer complètement.
+        {activeDownloads && (
+          <>
+            {' '}
+            <span className="font-medium text-content">
+              Des téléchargements sont en cours
+            </span>{' '}
+            : ils seront interrompus.
+          </>
+        )}
+      </p>
+      <div className="mt-5 flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => setVisible(false)}
+          className="rounded-lg bg-fill/10 px-4 py-2 text-sm font-medium text-content hover:bg-fill/20"
+        >
+          Annuler
+        </button>
+        <button
+          type="button"
+          onClick={() => void invoke('exit_app').catch(() => {})}
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white"
+        >
+          Quitter
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
 function Layout() {
   useGlobalEffects()
   // En plein écran (lecteur immersif), on retire la sidebar pour libérer
@@ -250,6 +319,7 @@ function Layout() {
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
+      <ExitConfirm />
     </div>
   )
 }
@@ -266,6 +336,7 @@ const router = createHashRouter([
       { path: 'updates', element: <Updates /> },
       { path: 'history', element: <History /> },
       { path: 'downloads', element: <Downloads /> },
+      { path: 'calendar', element: <Calendar /> },
       { path: 'stats', element: <Stats /> },
       { path: 'settings', element: <Settings /> },
       { path: 'manga/:sourceId/:mangaId', element: <MangaDetail /> },

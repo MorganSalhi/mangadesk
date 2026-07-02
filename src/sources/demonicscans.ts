@@ -1,7 +1,9 @@
 import { invoke } from '@tauri-apps/api/core'
+import { pickRandom, probeMaxPage } from './engines/randomCatalog'
 import type {
   Chapter,
-  Filter,
+  FilterValues,
+  SourceFilterDef,
   Manga,
   MangaListPage,
   MangaPreview,
@@ -35,6 +37,39 @@ interface FetchResponse {
   headers?: Record<string, string>
 }
 
+// --- Filtres (session 13) ------------------------------------------------------
+// Formulaire /advanced.php : genres[] (ids, POST uniquement — les params GET
+// sont ignorés par le site), status (all/ongoing/completed), orderby
+// (VIEWS/ID/NAME). Pagination via `?page=N` dans l'URL, filtres dans le corps.
+const STATIC_FILTERS: SourceFilterDef[] = [
+  {
+    id: 'sort',
+    name: 'Trier par',
+    type: 'select',
+    default: 'VIEWS',
+    options: [
+      { value: 'VIEWS', label: 'Popularité (vues)' },
+      { value: 'ID', label: 'Ajout le plus récent' },
+      { value: 'NAME', label: 'Titre (A→Z)' },
+    ],
+  },
+  {
+    id: 'status',
+    name: 'Statut',
+    type: 'select',
+    default: 'all',
+    options: [
+      { value: 'all', label: 'Tous' },
+      { value: 'ongoing', label: 'En cours' },
+      { value: 'completed', label: 'Terminé' },
+    ],
+  },
+]
+
+function strList(v: FilterValues[string]): string[] {
+  return Array.isArray(v) ? v : []
+}
+
 export class DemonicScansSource implements Source {
   readonly id = 'demonicscans'
   readonly name = 'DemonicScans'
@@ -43,9 +78,13 @@ export class DemonicScansSource implements Source {
   readonly version = '1.0.0'
   readonly isNsfw = false
   readonly supportsLatest = true
-  readonly filters: Filter[] = []
+  filters: SourceFilterDef[] = STATIC_FILTERS
 
-  private async fetchHtml(url: string): Promise<string> {
+  private dynamicFiltersPromise: Promise<SourceFilterDef[]> | null = null
+  /** Nombre de pages du listing advanced.php sans filtre (pour getRandom). */
+  private catalogPageCount: number | null = null
+
+  private async fetchHtml(url: string, method?: 'POST', body?: string): Promise<string> {
     let res: FetchResponse
     try {
       res = await invoke<FetchResponse>('fetch_url', {
@@ -55,13 +94,95 @@ export class DemonicScansSource implements Source {
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
           Referer: this.baseUrl,
+          ...(method === 'POST'
+            ? { 'Content-Type': 'application/x-www-form-urlencoded' }
+            : {}),
         },
+        method: method ?? 'GET',
+        body: body ?? null,
       })
     } catch (e) {
       throw new Error(`DemonicScans réseau : ${typeof e === 'string' ? e : 'inaccessible'}`)
     }
     if (res.status !== 200) throw new Error(`DemonicScans HTTP ${res.status} sur ${url}`)
     return res.body
+  }
+
+  /** Genres du site (ids numériques) parsés depuis le formulaire advanced.php. */
+  async getFilters(): Promise<SourceFilterDef[]> {
+    this.dynamicFiltersPromise ??= (async () => {
+      const html = await this.fetchHtml(`${this.baseUrl}/advanced.php`)
+      const doc = new DOMParser().parseFromString(html, 'text/html')
+      const options: { value: string; label: string }[] = []
+      const seen = new Set<string>()
+      doc.querySelectorAll('input[name="genres[]"]').forEach((input) => {
+        const value = input.getAttribute('value') ?? ''
+        if (!value || seen.has(value)) return
+        seen.add(value)
+        // Libellé = texte qui suit la checkbox (« <input …/>&nbsp;Action »).
+        const label =
+          input.nextSibling?.textContent?.replace(/ /g, ' ').trim() ||
+          input.parentElement?.textContent?.replace(/ /g, ' ').trim() ||
+          value
+        options.push({ value, label })
+      })
+      const defs: SourceFilterDef[] = [...STATIC_FILTERS]
+      if (options.length > 0) {
+        options.sort((a, b) => a.label.localeCompare(b.label))
+        defs.push({ id: 'genres', name: 'Genres', type: 'multiselect', options })
+      }
+      this.filters = defs
+      return defs
+    })()
+    try {
+      return await this.dynamicFiltersPromise
+    } catch (err) {
+      this.dynamicFiltersPromise = null
+      throw err
+    }
+  }
+
+  /**
+   * Listing advanced.php en GET. ⚠️ Le site a DEUX conventions : le formulaire
+   * poste `genres[]` (avec s), mais ses liens de pagination — les seuls à
+   * vraiment paginer — utilisent `genre[]` (sans s) + `list=N`, et CES params
+   * GET sont bien appliqués (vérifié : genres/tri/statut + pagination OK).
+   */
+  private advancedUrl(page: number, filters: FilterValues): string {
+    const params = new URLSearchParams()
+    params.set('list', String(page))
+    for (const g of strList(filters.genres)) params.append('genre[]', g)
+    params.set('status', typeof filters.status === 'string' ? filters.status : 'all')
+    params.set('orderby', typeof filters.sort === 'string' ? filters.sort : 'VIEWS')
+    return `${this.baseUrl}/advanced.php?${params.toString()}`
+  }
+
+  private async fetchAdvanced(
+    page: number,
+    filters: FilterValues,
+  ): Promise<{ html: string; doc: Document }> {
+    const html = await this.fetchHtml(this.advancedUrl(page, filters))
+    return { html, doc: new DOMParser().parseFromString(html, 'text/html') }
+  }
+
+  /**
+   * Manga aléatoire : page aléatoire du catalogue complet. La pagination du
+   * site tronque (« 1 2 3 . . . Next ») sans lier la dernière page → sonde
+   * exponentielle (cf. randomCatalog), une fois par session.
+   */
+  async getRandom(): Promise<MangaPreview> {
+    this.catalogPageCount ??= await probeMaxPage(
+      async (page) => this.parseMangaList((await this.fetchAdvanced(page, {})).html, page, Infinity).mangas.length,
+      { knownMax: 1, cap: 512 },
+    )
+    const page = 1 + Math.floor(Math.random() * this.catalogPageCount)
+    let list = this.parseMangaList((await this.fetchAdvanced(page, {})).html, page, Infinity)
+    if (list.mangas.length === 0 && page !== 1) {
+      this.catalogPageCount = null
+      list = this.parseMangaList((await this.fetchAdvanced(1, {})).html, 1, Infinity)
+    }
+    if (list.mangas.length === 0) throw new Error('DemonicScans: catalogue inaccessible.')
+    return pickRandom(list.mangas)
   }
 
   /**
@@ -83,12 +204,25 @@ export class DemonicScansSource implements Source {
     return decoded
   }
 
-  async search(query: string, page: number, _filters: Filter[]): Promise<MangaListPage> {
-    const url = query.trim()
-      ? `${this.baseUrl}/search.php?manga=${encodeURIComponent(query.trim())}`
-      : `${this.baseUrl}/`
-    const html = await this.fetchHtml(url)
-    return this.parseMangaList(html, page)
+  async search(query: string, page: number, filters: FilterValues): Promise<MangaListPage> {
+    const q = query.trim()
+    if (q) {
+      // La recherche textuelle du site ne supporte ni filtres ni pagination.
+      const html = await this.fetchHtml(
+        `${this.baseUrl}/search.php?manga=${encodeURIComponent(q)}`,
+      )
+      return this.parseMangaList(html, page)
+    }
+    // Sans requête : listing advanced.php (catalogue complet paginé, filtres
+    // genres/statut/tri appliqués côté site).
+    const { html, doc } = await this.fetchAdvanced(page, filters)
+    const list = this.parseMangaList(html, page, Infinity)
+    let hasNextPage = false
+    doc.querySelectorAll('a[href*="list="]').forEach((a) => {
+      const m = (a.getAttribute('href') ?? '').match(/list=(\d+)/)
+      if (m && parseInt(m[1], 10) > page) hasNextPage = true
+    })
+    return { ...list, hasNextPage: list.mangas.length > 0 && hasNextPage }
   }
 
   async getLatest(page: number): Promise<MangaListPage> {
@@ -96,7 +230,7 @@ export class DemonicScansSource implements Source {
     return this.parseMangaList(html, page)
   }
 
-  private parseMangaList(html: string, page: number): MangaListPage {
+  private parseMangaList(html: string, page: number, limit = 30): MangaListPage {
     const doc = new DOMParser().parseFromString(html, 'text/html')
     const seen = new Set<string>()
     const mangas: MangaPreview[] = []
@@ -126,7 +260,7 @@ export class DemonicScansSource implements Source {
     if (mangas.length === 0) {
       console.debug('[DemonicScans] parseMangaList: 0 résultats — html len =', html.length)
     }
-    return { mangas: mangas.slice(0, 30), hasNextPage: false, currentPage: page }
+    return { mangas: mangas.slice(0, limit), hasNextPage: false, currentPage: page }
   }
 
   async getMangaDetails(mangaId: string): Promise<Manga> {

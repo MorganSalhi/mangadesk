@@ -858,13 +858,25 @@ struct NavProbe {
     challenge: bool,
 }
 
-/// Deux URLs désignent-elles la même page ? On compare host + chemin en
-/// ignorant le slash final, la query et le fragment (un challenge Cloudflare
-/// ajoute p. ex. `?__cf_chl_rt_tk=…`).
+/// Deux URLs désignent-elles la même page ? Host + chemin (slash final
+/// ignoré) ET query — sans la query, `/catalogue/?order=popular` et
+/// `/catalogue/?order=popular&genre[]=3` passaient pour identiques et les
+/// filtres/pagination des sources en mode `navigate` ne re-naviguaient
+/// jamais (bug S13). Les paramètres injectés par un challenge Cloudflare
+/// (`?__cf_chl_rt_tk=…`) sont ignorés, et la query est triée (ordre stable).
 fn same_page(a: &str, b: &str) -> bool {
     let norm = |s: &str| -> String {
-        let base = s.split(['?', '#']).next().unwrap_or("");
-        base.trim_end_matches('/').to_string()
+        let no_frag = s.split('#').next().unwrap_or("");
+        let mut parts = no_frag.splitn(2, '?');
+        let base = parts.next().unwrap_or("").trim_end_matches('/');
+        let mut params: Vec<&str> = parts
+            .next()
+            .unwrap_or("")
+            .split('&')
+            .filter(|p| !p.is_empty() && !p.starts_with("__cf_"))
+            .collect();
+        params.sort_unstable();
+        format!("{}?{}", base, params.join("&"))
     };
     !a.is_empty() && norm(a) == norm(b)
 }

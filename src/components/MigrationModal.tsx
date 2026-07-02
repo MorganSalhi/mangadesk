@@ -72,7 +72,7 @@ export default function MigrationModal({ manga, onClose, onSuccess }: MigrationM
     setMatchesLoading(true)
     setMatchesError(null)
     targetSource
-      .search(matchQuery, 1, [])
+      .search(matchQuery, 1, {})
       .then((res) => {
         if (cancelled) return
         setMatches(res.mangas.slice(0, 5))

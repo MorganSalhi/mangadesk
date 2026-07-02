@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
 import type {
   Chapter,
-  Filter,
+  FilterValues,
+  SourceFilterDef,
   Manga,
   MangaListPage,
   MangaPreview,
@@ -168,6 +169,91 @@ function ratingQuery(): string {
   return CONTENT_RATING.map((r) => `contentRating[]=${r}`).join('&')
 }
 
+// --- Filtres (session 13) -----------------------------------------------------
+// Correspondance valeur du filtre → paramètre `order[...]` de l'API.
+const SORT_PARAMS: Record<string, string> = {
+  relevance: 'order[relevance]=desc',
+  follows: 'order[followedCount]=desc',
+  latestChapter: 'order[latestUploadedChapter]=desc',
+  newest: 'order[createdAt]=desc',
+  updated: 'order[updatedAt]=desc',
+  titleAsc: 'order[title]=asc',
+  rating: 'order[rating]=desc',
+  year: 'order[year]=desc',
+}
+
+const STATIC_FILTERS: SourceFilterDef[] = [
+  {
+    id: 'sort',
+    name: 'Trier par',
+    type: 'select',
+    default: 'follows',
+    options: [
+      { value: 'follows', label: 'Popularité (follows)' },
+      { value: 'relevance', label: 'Pertinence (recherche)' },
+      { value: 'latestChapter', label: 'Dernier chapitre publié' },
+      { value: 'newest', label: 'Ajout le plus récent' },
+      { value: 'updated', label: 'Dernière mise à jour' },
+      { value: 'rating', label: 'Note' },
+      { value: 'year', label: 'Année de parution' },
+      { value: 'titleAsc', label: 'Titre (A→Z)' },
+    ],
+  },
+  {
+    id: 'status',
+    name: 'Statut',
+    type: 'multiselect',
+    options: [
+      { value: 'ongoing', label: 'En cours' },
+      { value: 'completed', label: 'Terminé' },
+      { value: 'hiatus', label: 'En pause' },
+      { value: 'cancelled', label: 'Annulé' },
+    ],
+  },
+  {
+    id: 'demographic',
+    name: 'Démographie',
+    type: 'multiselect',
+    options: [
+      { value: 'shounen', label: 'Shōnen' },
+      { value: 'shoujo', label: 'Shōjo' },
+      { value: 'seinen', label: 'Seinen' },
+      { value: 'josei', label: 'Josei' },
+    ],
+  },
+  {
+    id: 'contentRating',
+    name: 'Classification',
+    type: 'multiselect',
+    options: [
+      { value: 'safe', label: 'Tout public' },
+      { value: 'suggestive', label: 'Suggestif' },
+      { value: 'erotica', label: 'Érotique' },
+    ],
+  },
+  {
+    id: 'year',
+    name: 'Année de parution',
+    type: 'text',
+    placeholder: 'ex. 2020',
+  },
+  {
+    id: 'hasChapters',
+    name: 'Avec chapitres disponibles (EN)',
+    type: 'checkbox',
+    default: false,
+  },
+]
+
+interface MdTagAttributes {
+  name?: LocalizedString
+  group?: string
+}
+
+function strList(v: FilterValues[string]): string[] {
+  return Array.isArray(v) ? v : []
+}
+
 export class MangaDexSource implements Source {
   readonly id = 'mangadex'
   readonly name = 'MangaDex'
@@ -176,17 +262,100 @@ export class MangaDexSource implements Source {
   readonly version = '1.0.0'
   readonly isNsfw = false
   readonly supportsLatest = true
-  readonly filters: Filter[] = []
+  filters: SourceFilterDef[] = STATIC_FILTERS
 
-  async search(query: string, page: number, _filters: Filter[]): Promise<MangaListPage> {
-    const q = query.trim()
-    if (!q) return this.getLatest(page)
+  // Tags (genres/thèmes/formats) chargés une fois via /manga/tag.
+  private tagFiltersPromise: Promise<SourceFilterDef[]> | null = null
+
+  async getFilters(): Promise<SourceFilterDef[]> {
+    this.tagFiltersPromise ??= (async () => {
+      const res = await apiGet<MdList<MdTagAttributes>>('/manga/tag')
+      const byGroup = new Map<string, { value: string; label: string }[]>()
+      for (const tag of res.data) {
+        const label = localized(tag.attributes.name)
+        if (!label) continue
+        const group = tag.attributes.group ?? 'genre'
+        const list = byGroup.get(group) ?? []
+        list.push({ value: tag.id, label })
+        byGroup.set(group, list)
+      }
+      const groups: { key: string; id: string; name: string }[] = [
+        { key: 'genre', id: 'genres', name: 'Genres' },
+        { key: 'theme', id: 'themes', name: 'Thèmes' },
+        { key: 'format', id: 'formats', name: 'Formats' },
+      ]
+      const tagDefs: SourceFilterDef[] = []
+      for (const g of groups) {
+        const options = (byGroup.get(g.key) ?? []).sort((a, b) =>
+          a.label.localeCompare(b.label),
+        )
+        if (options.length > 0) {
+          tagDefs.push({ id: g.id, name: g.name, type: 'multiselect', options })
+        }
+      }
+      this.filters = [...STATIC_FILTERS, ...tagDefs]
+      return this.filters
+    })()
+    try {
+      return await this.tagFiltersPromise
+    } catch (err) {
+      // Prochaine ouverture du panneau → nouvel essai.
+      this.tagFiltersPromise = null
+      throw err
+    }
+  }
+
+  /** Construit la query string /manga à partir de la recherche + des filtres. */
+  private buildListQuery(query: string, page: number, filters: FilterValues): string {
     const offset = (page - 1) * PAGE_SIZE
+    const parts: string[] = [
+      `limit=${PAGE_SIZE}`,
+      `offset=${offset}`,
+      'includes[]=cover_art',
+    ]
+    const q = query.trim()
+    if (q) parts.push(`title=${encodeURIComponent(q)}`)
+
+    // Tri : « pertinence » n'a de sens qu'avec une recherche ; défaut =
+    // pertinence avec requête, popularité sinon.
+    let sort = typeof filters.sort === 'string' ? filters.sort : ''
+    if (!SORT_PARAMS[sort]) sort = q ? 'relevance' : 'follows'
+    if (sort === 'relevance' && !q) sort = 'follows'
+    parts.push(SORT_PARAMS[sort])
+
+    const ratings = strList(filters.contentRating)
+    for (const r of ratings.length > 0 ? ratings : [...CONTENT_RATING]) {
+      parts.push(`contentRating[]=${r}`)
+    }
+    for (const s of strList(filters.status)) parts.push(`status[]=${s}`)
+    for (const d of strList(filters.demographic)) {
+      parts.push(`publicationDemographic[]=${d}`)
+    }
+    for (const t of [
+      ...strList(filters.genres),
+      ...strList(filters.themes),
+      ...strList(filters.formats),
+    ]) {
+      parts.push(`includedTags[]=${t}`)
+    }
+    const year = typeof filters.year === 'string' ? filters.year.trim() : ''
+    if (/^\d{4}$/.test(year)) parts.push(`year=${year}`)
+    if (filters.hasChapters === true) parts.push(`hasAvailableChapters=true&availableTranslatedLanguage[]=${LANG}`)
+    return `/manga?${parts.join('&')}`
+  }
+
+  async search(query: string, page: number, filters: FilterValues): Promise<MangaListPage> {
     const res = await apiGet<MdList<MdMangaAttributes>>(
-      `/manga?limit=${PAGE_SIZE}&offset=${offset}&title=${encodeURIComponent(q)}` +
-        `&includes[]=cover_art&${ratingQuery()}&order[relevance]=desc`,
+      this.buildListQuery(query, page, filters),
     )
     return this.toListPage(res, page)
+  }
+
+  async getRandom(): Promise<MangaPreview> {
+    const res = await apiGet<{ data: MdEntity<MdMangaAttributes> }>(
+      `/manga/random?includes[]=cover_art&${ratingQuery()}`,
+    )
+    return toPreview(res.data)
   }
 
   async getLatest(page: number): Promise<MangaListPage> {

@@ -1,6 +1,7 @@
 import type {
   Chapter,
-  Filter,
+  FilterValues,
+  SourceFilterDef,
   Manga,
   MangaListPage,
   MangaPreview,
@@ -119,7 +120,11 @@ export class ScanMangaSource implements Source {
   readonly version = '1.0.0'
   readonly isNsfw = true
   readonly supportsLatest = true
-  readonly filters: Filter[] = []
+  filters: SourceFilterDef[] = []
+
+  private dynamicFiltersPromise: Promise<SourceFilterDef[]> | null = null
+  /** Chemins des pages TOP (cache session, pour getRandom). */
+  private topPaths: string[] = []
 
   // htmlVia='navigate' : Scan-Manga refuse en 403 le fetch() programmatique des
   // pages HTML (Sec-Fetch-Mode: cors). On passe par une navigation réelle.
@@ -128,9 +133,91 @@ export class ScanMangaSource implements Source {
     htmlVia: 'navigate',
   })
 
-  async search(query: string, page: number, _filters: Filter[]): Promise<MangaListPage> {
+  /**
+   * Filtres : le site n'a pas de recherche paramétrable scrapable (formulaire
+   * avancé 100% AJAX obfusqué), mais publie des pages « TOP » par catégorie
+   * (/TOP-Shonen-53.html…, 100 titres classés par popularité). On les découvre
+   * dynamiquement depuis la page « liste des séries » — les numéros dans les
+   * URLs changent, d'où le parsing plutôt que des chemins codés en dur.
+   */
+  async getFilters(): Promise<SourceFilterDef[]> {
+    this.dynamicFiltersPromise ??= (async () => {
+      const html = await this.transport.fetchHtml(`${BASE_URL}/scanlation/liste_series.html`)
+      const doc = new DOMParser().parseFromString(html, 'text/html')
+      const seen = new Set<string>()
+      const options: { value: string; label: string }[] = [
+        { value: '', label: 'Dernières sorties (défaut)' },
+      ]
+      doc.querySelectorAll<HTMLAnchorElement>('a[href*="/TOP-"]').forEach((a) => {
+        const path = toPath(a.getAttribute('href') ?? '')
+        const m = path.match(/\/TOP-(.+)-\d+\.html$/)
+        if (!m || seen.has(path)) return
+        seen.add(path)
+        const label = (a.textContent?.trim() || m[1].replace(/-/g, ' ')).trim()
+        options.push({ value: path, label: `TOP ${label}` })
+      })
+      this.topPaths = options.map((o) => o.value).filter(Boolean)
+      const defs: SourceFilterDef[] =
+        options.length > 1
+          ? [{ id: 'top', name: 'Classement par catégorie', type: 'select', default: '', options }]
+          : []
+      this.filters = defs
+      return defs
+    })()
+    try {
+      return await this.dynamicFiltersPromise
+    } catch (err) {
+      this.dynamicFiltersPromise = null
+      throw err
+    }
+  }
+
+  /** Parse une page TOP : entrées `.image_manga a` (+ titre/cover lazy). */
+  private parseTopPage(html: string): MangaPreview[] {
+    const doc = new DOMParser().parseFromString(html, 'text/html')
+    const mangas: MangaPreview[] = []
+    const seen = new Set<string>()
+    doc.querySelectorAll('.image_manga a[href]').forEach((a) => {
+      const href = a.getAttribute('href') ?? ''
+      if (!/\.html$/.test(href)) return
+      const id = encId(toPath(href))
+      if (seen.has(id)) return
+      const img = a.querySelector('img')
+      const title = img?.getAttribute('title')?.trim() || img?.getAttribute('alt')?.trim() || ''
+      if (!title) return
+      seen.add(id)
+      mangas.push({ id, title, coverUrl: pickImgUrl(img), sourceId: this.id })
+    })
+    return mangas
+  }
+
+  /** Manga aléatoire : catégorie TOP aléatoire, puis entrée aléatoire (~100/page). */
+  async getRandom(): Promise<MangaPreview> {
+    if (this.topPaths.length === 0) {
+      await this.getFilters().catch(() => {})
+    }
+    if (this.topPaths.length === 0) {
+      // Repli : dernières sorties de la page d'accueil.
+      const latest = await this.getLatest(1)
+      if (latest.mangas.length === 0) throw new Error('Scan-Manga: catalogue inaccessible.')
+      return latest.mangas[Math.floor(Math.random() * latest.mangas.length)]
+    }
+    const path = this.topPaths[Math.floor(Math.random() * this.topPaths.length)]
+    const mangas = this.parseTopPage(await this.transport.fetchHtml(`${BASE_URL}${path}`))
+    if (mangas.length === 0) throw new Error('Scan-Manga: page TOP vide ou inaccessible.')
+    return mangas[Math.floor(Math.random() * mangas.length)]
+  }
+
+  async search(query: string, page: number, filters: FilterValues): Promise<MangaListPage> {
     const q = query.trim()
     if (!q) {
+      // Filtre « TOP catégorie » actif → page de classement correspondante.
+      const top = typeof filters.top === 'string' ? filters.top : ''
+      if (top && /^\/TOP-[\w-]+\.html$/.test(top)) {
+        if (page > 1) return { mangas: [], hasNextPage: false, currentPage: page }
+        const mangas = this.parseTopPage(await this.transport.fetchHtml(`${BASE_URL}${top}`))
+        return { mangas, hasNextPage: false, currentPage: page }
+      }
       // Pas de recherche → nouveautés de la page d'accueil (la page « TOP »
       // dépend d'un numéro magique fragile et n'existe pas sur le sous-domaine m.).
       return this.getLatest(page)

@@ -1193,3 +1193,49 @@ pub async fn purge_database(pool: State<'_, SqlitePool>) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+// ============================================================================
+// Calendrier des chapitres (session 13 bis) — matière première du pronostic.
+// ============================================================================
+
+#[derive(Serialize, FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct ChapterScheduleRow {
+    pub manga_id: String,
+    pub remote_id: String,
+    pub source_id: String,
+    pub title: String,
+    pub cover_url: Option<String>,
+    pub status: Option<String>,
+    pub number: f64,
+    pub date_upload: i64,
+}
+
+/// Dates des 12 derniers chapitres datés de chaque manga de la bibliothèque
+/// (séries non terminées/annulées). Le frontend en déduit la cadence de
+/// parution et la date estimée du prochain chapitre (lib/chapterSchedule.ts).
+#[tauri::command]
+pub async fn get_chapter_schedule(
+    pool: State<'_, SqlitePool>,
+) -> Result<Vec<ChapterScheduleRow>, String> {
+    sqlx::query_as::<_, ChapterScheduleRow>(
+        "SELECT manga_id, remote_id, source_id, title, cover_url, status, number, date_upload \
+         FROM ( \
+           SELECT m.id AS manga_id, m.remote_id, m.source_id, m.title, m.cover_url, m.status, \
+                  c.number, c.date_upload, \
+                  ROW_NUMBER() OVER ( \
+                    PARTITION BY m.id ORDER BY c.date_upload DESC, c.number DESC \
+                  ) AS rn \
+           FROM manga m \
+           JOIN chapters c ON c.manga_id = m.id \
+           WHERE m.in_library = 1 \
+             AND COALESCE(c.date_upload, 0) > 0 \
+             AND COALESCE(m.status, 'unknown') NOT IN ('completed', 'cancelled') \
+         ) \
+         WHERE rn <= 12 \
+         ORDER BY manga_id, date_upload DESC",
+    )
+    .fetch_all(&*pool)
+    .await
+    .map_err(|e| e.to_string())
+}

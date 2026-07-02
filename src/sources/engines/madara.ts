@@ -1,6 +1,8 @@
 import type {
   Chapter,
-  Filter,
+  FilterOption,
+  FilterValues,
+  SourceFilterDef,
   Manga,
   MangaListPage,
   MangaPreview,
@@ -8,6 +10,7 @@ import type {
   Source,
 } from '../../types'
 import { createTransport, type Transport } from './cfTransport'
+import { pickRandom, probeMaxPage } from './randomCatalog'
 
 // ============================================================================
 // Moteur Madara / WordPress WP-Manga partagé.
@@ -102,6 +105,35 @@ function parseDate(text: string): number {
   return 0
 }
 
+// --- Filtres (session 13) ----------------------------------------------------
+
+/** Tris supportés par le paramètre `m_orderby` du formulaire Madara standard. */
+const MADARA_SORT_OPTIONS: FilterOption[] = [
+  { value: 'views', label: 'Popularité (vues)' },
+  { value: 'trending', label: 'Tendance' },
+  { value: 'latest', label: 'Dernières mises à jour' },
+  { value: 'new-manga', label: 'Nouveautés' },
+  { value: 'rating', label: 'Note' },
+  { value: 'alphabet', label: 'Titre (A→Z)' },
+  { value: '', label: 'Pertinence (recherche)' },
+]
+
+/** Libellés FR des statuts Madara standards (repli si le formulaire est muet). */
+const MADARA_STATUS_FALLBACK: FilterOption[] = [
+  { value: 'on-going', label: 'En cours' },
+  { value: 'end', label: 'Terminé' },
+  { value: 'on-hold', label: 'En pause' },
+  { value: 'canceled', label: 'Annulé' },
+]
+
+function strList(v: FilterValues[string]): string[] {
+  return Array.isArray(v) ? v : []
+}
+
+function str(v: FilterValues[string]): string {
+  return typeof v === 'string' ? v.trim() : ''
+}
+
 export class MadaraSource implements Source {
   readonly id: string
   readonly name: string
@@ -110,7 +142,12 @@ export class MadaraSource implements Source {
   readonly version: string
   readonly isNsfw: boolean
   readonly supportsLatest = true
-  readonly filters: Filter[] = []
+  filters: SourceFilterDef[]
+
+  /** Promesse mémoïsée de chargement des filtres dynamiques (genres du site). */
+  private dynamicFiltersPromise: Promise<SourceFilterDef[]> | null = null
+  /** Nombre de pages du catalogue (cache session, pour getRandom). */
+  private catalogPageCount: number | null = null
 
   protected readonly cfg: Required<
     Pick<
@@ -139,6 +176,7 @@ export class MadaraSource implements Source {
       htmlVia: config.htmlVia,
       userAgent: config.userAgent,
     })
+    this.filters = this.staticFilterDefs()
   }
 
   private archiveUrl(page: number, orderby: string): string {
@@ -149,15 +187,229 @@ export class MadaraSource implements Source {
     return `${base}?m_orderby=${orderby}`
   }
 
-  async search(query: string, page: number, _filters: Filter[]): Promise<MangaListPage> {
+  // --- Filtres ---------------------------------------------------------------
+
+  /** Définitions disponibles sans requête réseau (le tri seul). */
+  protected staticFilterDefs(): SourceFilterDef[] {
+    return [
+      {
+        id: 'sort',
+        name: 'Trier par',
+        type: 'select',
+        default: this.cfg.popularOrderby,
+        options: MADARA_SORT_OPTIONS,
+      },
+    ]
+  }
+
+  /**
+   * Complète les définitions depuis le formulaire de recherche avancée du site
+   * (`/?s=&post_type=wp-manga`) : genres, statuts, contenu adulte, auteur…
+   * Chaque site Madara a sa propre taxonomie de genres — d'où le parsing
+   * dynamique plutôt qu'une liste codée en dur.
+   */
+  async getFilters(): Promise<SourceFilterDef[]> {
+    this.dynamicFiltersPromise ??= (async () => {
+      const html = await this.transport.fetchHtml(
+        `${this.baseUrl}/?s=&post_type=wp-manga`,
+      )
+      const doc = new DOMParser().parseFromString(html, 'text/html')
+
+      const labelFor = (input: Element): string => {
+        const id = input.getAttribute('id')
+        const label = id ? doc.querySelector(`label[for="${id}"]`) : null
+        return (
+          label?.textContent?.trim() ||
+          input.parentElement?.textContent?.trim() ||
+          input.getAttribute('value') ||
+          ''
+        )
+      }
+      const checkboxOptions = (name: string): FilterOption[] => {
+        const seen = new Set<string>()
+        const options: FilterOption[] = []
+        doc.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
+          const value = input.getAttribute('value') ?? ''
+          if (!value || seen.has(value)) return
+          seen.add(value)
+          options.push({ value, label: labelFor(input) || value })
+        })
+        return options
+      }
+
+      const defs: SourceFilterDef[] = [...this.staticFilterDefs()]
+
+      const genres = checkboxOptions('genre[]')
+      if (genres.length > 0) {
+        defs.push({ id: 'genres', name: 'Genres', type: 'multiselect', options: genres })
+        defs.push({
+          id: 'genresAnd',
+          name: 'Cumuler les genres (ET)',
+          type: 'checkbox',
+          default: false,
+        })
+      }
+
+      const statuses = checkboxOptions('status[]')
+      defs.push({
+        id: 'status',
+        name: 'Statut',
+        type: 'multiselect',
+        options: statuses.length > 0 ? statuses : MADARA_STATUS_FALLBACK,
+      })
+
+      if (doc.querySelector('select[name="adult"]')) {
+        defs.push({
+          id: 'adult',
+          name: 'Contenu adulte',
+          type: 'select',
+          default: '',
+          options: [
+            { value: '', label: 'Tout afficher' },
+            { value: '0', label: 'Masquer le contenu adulte' },
+            { value: '1', label: 'Contenu adulte uniquement' },
+          ],
+        })
+      }
+
+      const releases = checkboxOptions('release[]')
+      if (releases.length > 0) {
+        defs.push({
+          id: 'release',
+          name: 'Année de sortie',
+          type: 'multiselect',
+          options: releases,
+        })
+      }
+
+      if (doc.querySelector('input[name="author"]')) {
+        defs.push({ id: 'author', name: 'Auteur', type: 'text', placeholder: 'Nom d’auteur' })
+      }
+      if (doc.querySelector('input[name="artist"]')) {
+        defs.push({ id: 'artist', name: 'Artiste', type: 'text', placeholder: 'Nom d’artiste' })
+      }
+
+      this.filters = defs
+      return defs
+    })()
+    try {
+      return await this.dynamicFiltersPromise
+    } catch (err) {
+      // Prochain passage → nouvel essai (échec réseau/Cloudflare ponctuel).
+      this.dynamicFiltersPromise = null
+      throw err
+    }
+  }
+
+  async search(query: string, page: number, filters: FilterValues): Promise<MangaListPage> {
     const q = query.trim()
-    if (!q) {
-      const html = await this.transport.fetchHtml(this.archiveUrl(page, this.cfg.popularOrderby))
+    const genres = strList(filters.genres)
+    const statuses = strList(filters.status)
+    const releases = strList(filters.release)
+    const adult = str(filters.adult)
+    const author = str(filters.author)
+    const artist = str(filters.artist)
+    const sort = typeof filters.sort === 'string' ? filters.sort : this.cfg.popularOrderby
+
+    const hasAdvanced =
+      !!q ||
+      genres.length > 0 ||
+      statuses.length > 0 ||
+      releases.length > 0 ||
+      adult !== '' ||
+      !!author ||
+      !!artist
+
+    if (!hasAdvanced) {
+      // Archive simple : plus léger et markup « populaire » plus riche.
+      const html = await this.transport.fetchHtml(
+        this.archiveUrl(page, sort || this.cfg.popularOrderby),
+      )
       return this.parseMangaList(html, page, false)
     }
+
+    // Formulaire de recherche avancée Madara (fonctionne aussi avec s vide).
+    const params = new URLSearchParams()
+    params.set('s', q)
+    params.set('post_type', 'wp-manga')
+    if (sort) params.set('m_orderby', sort)
+    for (const g of genres) params.append('genre[]', g)
+    if (genres.length > 0 && filters.genresAnd === true) params.set('op', '1')
+    for (const s of statuses) params.append('status[]', s)
+    for (const r of releases) params.append('release[]', r)
+    if (adult) params.set('adult', adult)
+    if (author) params.set('author', author)
+    if (artist) params.set('artist', artist)
+
     const base = page === 1 ? `${this.baseUrl}/` : `${this.baseUrl}/page/${page}/`
-    const html = await this.transport.fetchHtml(`${base}?s=${encodeURIComponent(q)}&post_type=wp-manga`)
+    const html = await this.transport.fetchHtml(`${base}?${params.toString()}`)
     return this.parseMangaList(html, page, true)
+  }
+
+  /** URL de la recherche vide (mode search, paginable, avec compteur total). */
+  private emptySearchUrl(page: number): string {
+    const base = page === 1 ? `${this.baseUrl}/` : `${this.baseUrl}/page/${page}/`
+    return `${base}?s=&post_type=wp-manga`
+  }
+
+  /**
+   * Nombre de pages du catalogue. L'archive Madara ne lie que « page
+   * suivante » (pas de dernier numéro) — mais la page de RECHERCHE vide
+   * affiche le total (« 418 results » / « résultats ») : total ÷ taille de la
+   * page 1 = nombre de pages. Repli : sonde exponentielle (cf. randomCatalog).
+   */
+  private async resolveCatalogPageCount(): Promise<{ pages: number; firstPage: MangaPreview[] }> {
+    const html = await this.transport.fetchHtml(this.emptySearchUrl(1))
+    const list = this.parseMangaList(html, 1, true)
+    const perPage = list.mangas.length
+    if (perPage === 0) throw new Error(`${this.name}: catalogue vide ou inaccessible.`)
+
+    if (this.catalogPageCount == null) {
+      const doc = new DOMParser().parseFromString(html, 'text/html')
+      const headerText =
+        doc.querySelector('.search-wrap h1, .c-blog__heading h1, h1.h4')?.textContent ?? ''
+      const counter = headerText.match(/([\d][\d\s.,]*)\s*(?:results?|r[ée]sultats?)/i)
+      if (counter) {
+        const total = parseInt(counter[1].replace(/[\s.,]/g, ''), 10)
+        if (Number.isFinite(total) && total > 0) {
+          this.catalogPageCount = Math.max(1, Math.ceil(total / perPage))
+        }
+      }
+      if (this.catalogPageCount == null) {
+        this.catalogPageCount = await probeMaxPage(
+          async (page) =>
+            this.parseMangaList(
+              await this.transport.fetchHtml(this.emptySearchUrl(page)),
+              page,
+              true,
+            ).mangas.length,
+          { knownMax: 1 },
+        )
+      }
+    }
+    return { pages: this.catalogPageCount, firstPage: list.mangas }
+  }
+
+  /**
+   * Manga aléatoire : page aléatoire de la recherche vide (= catalogue
+   * complet, pas seulement les têtes d'affiche), puis entrée aléatoire.
+   */
+  async getRandom(): Promise<MangaPreview> {
+    const { pages, firstPage } = await this.resolveCatalogPageCount()
+    const page = 1 + Math.floor(Math.random() * pages)
+    if (page === 1) return pickRandom(firstPage)
+
+    let list = this.parseMangaList(
+      await this.transport.fetchHtml(this.emptySearchUrl(page)),
+      page,
+      true,
+    )
+    if (list.mangas.length === 0) {
+      // Pagination surestimée (catalogue rétréci) → repli page 1.
+      this.catalogPageCount = null
+      list = { mangas: firstPage, hasNextPage: false, currentPage: 1 }
+    }
+    return pickRandom(list.mangas)
   }
 
   async getLatest(page: number): Promise<MangaListPage> {

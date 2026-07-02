@@ -12,6 +12,14 @@ use tauri::{Emitter, Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+/// Termine le process entier. Nécessaire car fermer la fenêtre principale ne
+/// suffit pas : les WebViews solveurs Cloudflare cachés (`cf-*`) restent
+/// ouverts et maintiennent l'app en vie en arrière-plan.
+#[tauri::command]
+fn exit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 fn main() {
     // Migrations gérées par tauri-plugin-sql (expose aussi la base au frontend
     // via @tauri-apps/plugin-sql). Toute migration future = nouvelle version.
@@ -178,7 +186,19 @@ fn main() {
 
             Ok(())
         })
+        // Fermeture de la fenêtre principale : on N'ACCEPTE PAS la fermeture
+        // directe. Le frontend affiche une confirmation, puis appelle
+        // `exit_app` qui termine tout le process (fenêtres cf-* comprises).
+        .on_window_event(|window, event| {
+            if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.emit("app:close-requested", ());
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
+            exit_app,
             commands::fetch::fetch_url,
             commands::fetch::fetch_image_as_base64,
             commands::fetch::harvest_blobs,
@@ -222,6 +242,7 @@ fn main() {
             commands::db::get_preference,
             commands::db::set_preference,
             commands::db::get_recent_updates,
+            commands::db::get_chapter_schedule,
             commands::db::get_new_chapter_count,
             commands::db::record_download,
             commands::db::get_downloaded_chapter_ids,

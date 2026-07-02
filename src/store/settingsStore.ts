@@ -52,6 +52,8 @@ interface SettingsState {
   // localement (zustand/persist) ET côté SQLite (`preferences.incognito_mode`)
   // pour rester cohérent si le store local est purgé.
   incognitoMode: boolean
+  // Demande une confirmation avant de quitter l'app (croix de la fenêtre).
+  confirmBeforeExit: boolean
   // Actions
   updateReaderSettings(patch: Partial<ReaderSettings>): void
   updateSetting<K extends keyof SettingsState>(key: K, value: SettingsState[K]): void
@@ -78,6 +80,7 @@ export const useSettingsStore = create<SettingsState>()(
       sourceRepos: [],
       lastSeenUpdates: Date.now(),
       incognitoMode: false,
+      confirmBeforeExit: true,
 
       updateReaderSettings: (patch) =>
         set({ readerSettings: { ...get().readerSettings, ...patch } }),

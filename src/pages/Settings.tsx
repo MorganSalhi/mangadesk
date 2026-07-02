@@ -157,6 +157,7 @@ function GeneralTab() {
   const accentColor = useSettingsStore((s) => s.accentColor)
   const incognitoMode = useSettingsStore((s) => s.incognitoMode)
   const setIncognitoMode = useSettingsStore((s) => s.setIncognitoMode)
+  const confirmBeforeExit = useSettingsStore((s) => s.confirmBeforeExit)
   const update = useSettingsStore((s) => s.updateSetting)
 
   return (
@@ -208,6 +209,12 @@ function GeneralTab() {
       </Row>
       <Row label="Navigation privée">
         <Toggle checked={incognitoMode} onChange={(v) => void setIncognitoMode(v)} />
+      </Row>
+      <Row label="Confirmer avant de quitter">
+        <Toggle
+          checked={confirmBeforeExit}
+          onChange={(v) => update('confirmBeforeExit', v)}
+        />
       </Row>
     </Card>
   )
