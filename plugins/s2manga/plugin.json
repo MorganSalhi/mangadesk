@@ -3,6 +3,6 @@
   "name": "S2Manga",
   "lang": "en",
   "baseUrl": "https://s2read.com",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "nsfw": true
 }

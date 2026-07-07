@@ -3,6 +3,6 @@
   "name": "Sushiscan.fr",
   "lang": "fr",
   "baseUrl": "https://sushiscan.fr",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "nsfw": true
 }

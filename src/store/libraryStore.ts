@@ -253,24 +253,40 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   loadCovers: async (mangas) => {
-    await Promise.all(
-      mangas.map((manga) =>
-        coverLimit(async () => {
-          if (get().coverCache.has(manga.id)) return
-          let src = manga.coverUrl
-          try {
-            src = await fetchRemoteImage(manga.coverUrl, { sourceId: manga.sourceId })
-          } catch {
-            // Échec (backend absent) : on retombe sur l'URL directe plutôt que rien.
-          }
-          set((s) => {
-            const next = new Map(s.coverCache)
-            next.set(manga.id, src)
-            return { coverCache: next }
-          })
-        }),
-      ),
-    )
+    // Les résultats sont regroupés puis poussés par LOTS dans le store : un
+    // `set` par couverture clonait la Map et re-rendait toute la grille N fois
+    // (O(n²) au chargement d'une grande bibliothèque).
+    const batch = new Map<string, string>()
+    const flush = () => {
+      if (batch.size === 0) return
+      const entries = [...batch]
+      batch.clear()
+      set((s) => {
+        const next = new Map(s.coverCache)
+        for (const [id, src] of entries) next.set(id, src)
+        return { coverCache: next }
+      })
+    }
+    const timer = window.setInterval(flush, 150)
+    try {
+      await Promise.all(
+        mangas.map((manga) =>
+          coverLimit(async () => {
+            if (get().coverCache.has(manga.id) || batch.has(manga.id)) return
+            let src = manga.coverUrl
+            try {
+              src = await fetchRemoteImage(manga.coverUrl, { sourceId: manga.sourceId })
+            } catch {
+              // Échec (backend absent) : on retombe sur l'URL directe plutôt que rien.
+            }
+            batch.set(manga.id, src)
+          }),
+        ),
+      )
+    } finally {
+      window.clearInterval(timer)
+      flush()
+    }
   },
 
   loadCategories: async () => {
@@ -332,13 +348,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   removeManyFromLibrary: async (mangaIds) => {
     const ids = new Set(mangaIds)
-    for (const id of mangaIds) {
-      try {
-        await invoke('remove_from_library', { mangaId: id })
-      } catch {
-        /* ignore */
-      }
-    }
+    await Promise.all(
+      mangaIds.map((id) => invoke('remove_from_library', { mangaId: id }).catch(() => {})),
+    )
     set((s) => ({ mangas: s.mangas.filter((m) => !ids.has(m.id)) }))
   },
 

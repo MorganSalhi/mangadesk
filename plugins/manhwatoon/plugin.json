@@ -3,6 +3,6 @@
   "name": "Manhwa Toon",
   "lang": "en",
   "baseUrl": "https://www.manhwatoon.me",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "nsfw": true
 }

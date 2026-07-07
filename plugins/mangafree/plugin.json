@@ -3,6 +3,6 @@
   "name": "Mangafree",
   "lang": "en",
   "baseUrl": "https://mangafree.info",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "nsfw": true
 }

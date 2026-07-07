@@ -276,6 +276,22 @@ pub async fn mark_chapter_read(
     Ok(())
 }
 
+/// Marque TOUS les chapitres d'un manga comme lus (action de masse de la
+/// bibliothèque). Un seul UPDATE — l'ancien chemin frontend faisait un
+/// aller-retour IPC + UPDATE par chapitre.
+#[tauri::command]
+pub async fn mark_manga_read(
+    pool: State<'_, SqlitePool>,
+    manga_id: String,
+) -> Result<(), String> {
+    sqlx::query("UPDATE chapters SET is_read = 1 WHERE manga_id = ?")
+        .bind(manga_id)
+        .execute(&*pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Sauvegarde la position de lecture SANS marquer le chapitre comme lu.
 /// Permet la reprise (`is_read = 0` + `last_page_read > 0`) tant que la fin
 /// n'est pas atteinte (cf. `mark_chapter_read` pour la complétion).
@@ -670,11 +686,17 @@ pub async fn record_download(
     total_pages: Option<i64>,
     local_path: Option<String>,
 ) -> Result<(), String> {
+    // Un seul UPSERT (index unique idx_downloads_chapter) : remplace l'ancien
+    // couple INSERT-or-nothing + UPDATE systématique (2 requêtes).
     sqlx::query(
         "INSERT INTO downloads \
          (chapter_id, manga_id, status, progress, total_pages, local_path, created_at, updated_at) \
          VALUES (?,?,?,0,?,?,?,?) \
-         ON CONFLICT DO NOTHING",
+         ON CONFLICT(chapter_id) DO UPDATE SET \
+           status = excluded.status, \
+           total_pages = COALESCE(excluded.total_pages, downloads.total_pages), \
+           local_path = COALESCE(excluded.local_path, downloads.local_path), \
+           updated_at = excluded.updated_at",
     )
     .bind(&chapter_id)
     .bind(&manga_id)
@@ -683,18 +705,6 @@ pub async fn record_download(
     .bind(&local_path)
     .bind(now_millis())
     .bind(now_millis())
-    .execute(&*pool)
-    .await
-    .map_err(|e| e.to_string())?;
-    // Met à jour si déjà présent (l'INSERT ci-dessus n'écrase pas).
-    sqlx::query(
-        "UPDATE downloads SET status = ?, local_path = COALESCE(?, local_path), updated_at = ? \
-         WHERE chapter_id = ?",
-    )
-    .bind(&status)
-    .bind(&local_path)
-    .bind(now_millis())
-    .bind(&chapter_id)
     .execute(&*pool)
     .await
     .map_err(|e| e.to_string())?;

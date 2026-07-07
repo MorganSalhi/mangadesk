@@ -117,6 +117,10 @@ export default function Reader() {
   const mountTime = useRef(Date.now())
   const fetchLimit = useRef(pLimit(4))
   const inflight = useRef<Set<number>>(new Set())
+  // Génération de chargement : incrémentée à chaque changement de chapitre.
+  // Un fetch de page encore en file au moment du changement ne doit PAS écrire
+  // son résultat dans le chapitre suivant (mêmes index → mauvaises images).
+  const loadEpoch = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const pageEls = useRef<Map<number, HTMLElement>>(new Map())
   // Debounce du masquage HUD en plein écran (cf. showHud).
@@ -183,12 +187,15 @@ export default function Reader() {
   const ensureLoaded = useCallback(
     (indices: number[]) => {
       const { pages: allPages, loadedPages: loaded } = useReaderStore.getState()
+      const epoch = loadEpoch.current
       for (const index of indices) {
         if (index < 0 || index >= allPages.length) continue
         if (loaded.has(index) || inflight.current.has(index)) continue
         inflight.current.add(index)
         void fetchLimit.current(async () => {
+          if (epoch !== loadEpoch.current) return // chapitre changé entre-temps
           const src = await resolvePageSrc(allPages[index])
+          if (epoch !== loadEpoch.current) return
           setLoadedPage(index, src)
           inflight.current.delete(index)
         })
@@ -201,6 +208,7 @@ export default function Reader() {
   useEffect(() => {
     if (!mangaId || !chapterId || !sourceId) return
     let cancelled = false
+    loadEpoch.current += 1
     inflight.current = new Set()
     pageEls.current = new Map()
     mountTime.current = Date.now()
@@ -276,10 +284,14 @@ export default function Reader() {
   }, [pages.length, startPage, isWebtoon, isReady, setCurrentPage])
 
   // -- Préchargement -----------------------------------------------------------
+  // Webtoon : fenêtre glissante autour de la page courante (3 avant, 12 après)
+  // au lieu du chapitre entier — un chapitre long, c'est 100+ images (réseau +
+  // mémoire) téléchargées d'emblée alors que le lecteur en voit 2-3. Le scroll
+  // met currentPage à jour, ce qui étend la fenêtre au fil de la lecture.
   useEffect(() => {
     if (pages.length === 0) return
     if (isWebtoon) {
-      ensureLoaded(pages.map((p) => p.index))
+      ensureLoaded(range(Math.max(0, currentPage - 3), 16))
     } else {
       ensureLoaded(range(currentPage, settings.preloadCount + 1))
     }

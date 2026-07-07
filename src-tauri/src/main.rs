@@ -227,6 +227,7 @@ fn main() {
             commands::db::get_chapters,
             commands::db::upsert_chapters,
             commands::db::mark_chapter_read,
+            commands::db::mark_manga_read,
             commands::db::update_chapter_progress,
             commands::db::get_categories,
             commands::db::create_category,

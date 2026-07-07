@@ -1,4 +1,4 @@
-// Toonizy v1.0.0 — plugin MangaDesk (généré par scripts/build-plugins.mjs, ne pas éditer)
+// Toonizy v1.0.1 — plugin MangaDesk (généré par scripts/build-plugins.mjs, ne pas éditer)
 "use strict";
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -40,6 +40,17 @@ var invoke = (cmd, args) => {
 
 // src/sources/engines/scrape.ts
 var DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+function createPageMicroCache(ttlMs = 2e4) {
+  let entry = null;
+  return {
+    async fetch(url, fetcher) {
+      if (entry && entry.url === url && Date.now() - entry.at < ttlMs) return entry.html;
+      const html = await fetcher(url);
+      entry = { url, html, at: Date.now() };
+      return html;
+    }
+  };
+}
 function strList(v) {
   return Array.isArray(v) ? v : [];
 }
@@ -328,6 +339,8 @@ var MadaraSource = class {
     __publicField(this, "dynamicFiltersPromise", null);
     /** Nombre de pages du catalogue (cache session, pour getRandom). */
     __publicField(this, "catalogPageCount", null);
+    /** Micro-cache de la fiche : getMangaDetails + getChapterList = même page. */
+    __publicField(this, "fichePage", createPageMicroCache());
     __publicField(this, "cfg");
     __publicField(this, "transport");
     this.id = config.id;
@@ -555,7 +568,10 @@ var MadaraSource = class {
     return { mangas, hasNextPage, currentPage: page };
   }
   async getMangaDetails(mangaId) {
-    const html = await this.transport.fetchHtml(`${this.baseUrl}/${this.cfg.mangaSub}/${mangaId}/`);
+    const html = await this.fichePage.fetch(
+      `${this.baseUrl}/${this.cfg.mangaSub}/${mangaId}/`,
+      (u) => this.transport.fetchHtml(u)
+    );
     const doc = new DOMParser().parseFromString(html, "text/html");
     const title = doc.querySelector("div.post-title h3, div.post-title h1, #manga-title > h1")?.textContent?.trim() ?? doc.querySelector("h1")?.textContent?.trim() ?? mangaId;
     const coverUrl = imgSrc(doc.querySelector("div.summary_image img"));
@@ -588,11 +604,17 @@ var MadaraSource = class {
       });
       doc = new DOMParser().parseFromString(html, "text/html");
       if (doc.querySelectorAll("li.wp-manga-chapter").length === 0) {
-        const page = await this.transport.fetchHtml(`${mangaUrl}/`);
+        const page = await this.fichePage.fetch(
+          `${mangaUrl}/`,
+          (u) => this.transport.fetchHtml(u)
+        );
         doc = new DOMParser().parseFromString(page, "text/html");
       }
     } else {
-      const html = await this.transport.fetchHtml(`${mangaUrl}/`);
+      const html = await this.fichePage.fetch(
+        `${mangaUrl}/`,
+        (u) => this.transport.fetchHtml(u)
+      );
       doc = new DOMParser().parseFromString(html, "text/html");
     }
     const items = Array.from(doc.querySelectorAll("li.wp-manga-chapter"));
@@ -650,7 +672,7 @@ var plugin_default = {
   name: "Toonizy",
   lang: "en",
   baseUrl: "https://toonizy.com",
-  version: "1.0.0",
+  version: "1.0.1",
   nsfw: true
 };
 

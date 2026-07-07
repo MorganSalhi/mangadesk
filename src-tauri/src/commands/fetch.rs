@@ -630,11 +630,16 @@ pub async fn fetch_via_webview(
     );
 
     let deadline = Instant::now() + Duration::from_secs(60);
+    // Polling adaptatif : premier passage rapide (la plupart des fetch webview
+    // aboutissent en < 200 ms — un pas fixe de 250 ms les taxait tous), puis
+    // on relâche progressivement jusqu'à 250 ms.
+    let mut poll_ms = 50u64;
     loop {
         if Instant::now() > deadline {
             return Err("fetch_via_webview: délai dépassé (60 s).".into());
         }
-        tokio::time::sleep(Duration::from_millis(250)).await;
+        tokio::time::sleep(Duration::from_millis(poll_ms)).await;
+        poll_ms = (poll_ms * 2).min(250);
 
         let raw = eval_json(&window, poll_js.clone()).await?;
         let parsed: JsFetchResult = serde_json::from_str(&raw).map_err(|e| {
@@ -761,11 +766,14 @@ pub async fn image_via_webview(
         id = id,
     );
     let deadline = Instant::now() + Duration::from_secs(60);
+    // Même polling adaptatif que fetch_via_webview (50 → 250 ms).
+    let mut poll_ms = 50u64;
     loop {
         if Instant::now() > deadline {
             return Err("image_via_webview: délai dépassé (60 s).".into());
         }
-        tokio::time::sleep(Duration::from_millis(250)).await;
+        tokio::time::sleep(Duration::from_millis(poll_ms)).await;
+        poll_ms = (poll_ms * 2).min(250);
         let raw = eval_json(&window, poll_js.clone()).await?;
         let parsed: JsImageResult = serde_json::from_str(&raw).map_err(|e| {
             let preview: String = raw.chars().take(120).collect();

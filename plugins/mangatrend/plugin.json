@@ -3,6 +3,6 @@
   "name": "Manga Trend",
   "lang": "en",
   "baseUrl": "https://mangatrend.org",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "nsfw": false
 }

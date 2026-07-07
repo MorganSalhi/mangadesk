@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 import { SOURCE_REGISTRY } from '../hooks/useSource'
@@ -31,22 +31,11 @@ function formatDate(ms: number | undefined): string {
   return new Date(ms).toLocaleDateString('fr-FR')
 }
 
-// Forme minimale renvoyée par get_chapters (on n'a besoin que de l'id).
-interface ChapterIdRow {
-  id: string
-}
-
 async function markMangasRead(mangaIds: string[]): Promise<void> {
-  for (const mangaId of mangaIds) {
-    try {
-      const chapters = await invoke<ChapterIdRow[]>('get_chapters', { mangaId })
-      for (const ch of chapters) {
-        await invoke('mark_chapter_read', { chapterId: ch.id, lastPage: 0 })
-      }
-    } catch {
-      /* backend absent : on ignore */
-    }
-  }
+  // Un UPDATE par manga côté SQL (avant : un aller-retour IPC par CHAPITRE).
+  await Promise.all(
+    mangaIds.map((mangaId) => invoke('mark_manga_read', { mangaId }).catch(() => {})),
+  )
 }
 
 export default function Library() {
@@ -121,43 +110,51 @@ export default function Library() {
 
   const activeFilterCount = countActiveFilters(filters)
 
-  function toggleSelect(mangaId: string) {
+  // Handlers stables (useCallback) : les cartes sont mémoïsées — sans réfs
+  // stables, chaque chargement de couverture re-rendrait toute la grille.
+  const toggleSelect = useCallback((mangaId: string) => {
     setSelected((prev) => {
       const next = new Set(prev)
       if (next.has(mangaId)) next.delete(mangaId)
       else next.add(mangaId)
       return next
     })
-  }
+  }, [])
 
   function exitSelection() {
     setSelectionMode(false)
     setSelected(new Set())
   }
 
-  function handlePointerDown(mangaId: string) {
-    longPressTimer.current = window.setTimeout(() => {
-      setSelectionMode(true)
-      toggleSelect(mangaId)
-    }, 300)
-  }
+  const handlePointerDown = useCallback(
+    (mangaId: string) => {
+      longPressTimer.current = window.setTimeout(() => {
+        setSelectionMode(true)
+        toggleSelect(mangaId)
+      }, 300)
+    },
+    [toggleSelect],
+  )
 
-  function clearLongPress() {
+  const clearLongPress = useCallback(() => {
     if (longPressTimer.current !== null) {
       window.clearTimeout(longPressTimer.current)
       longPressTimer.current = null
     }
-  }
+  }, [])
 
-  function handleCardClick(manga: LibraryManga, e: React.MouseEvent) {
-    // Clic en mode sélection (ou Shift) = (dé)sélection ; sinon → page détail.
-    if (selectionMode || e.shiftKey) {
-      if (!selectionMode) setSelectionMode(true)
-      toggleSelect(manga.id)
-      return
-    }
-    navigate(`/manga/${manga.sourceId}/${manga.id}`)
-  }
+  const handleCardClick = useCallback(
+    (manga: LibraryManga, e: React.MouseEvent) => {
+      // Clic en mode sélection (ou Shift) = (dé)sélection ; sinon → page détail.
+      if (selectionMode || e.shiftKey) {
+        if (!selectionMode) setSelectionMode(true)
+        toggleSelect(manga.id)
+        return
+      }
+      navigate(`/manga/${manga.sourceId}/${manga.id}`)
+    },
+    [selectionMode, toggleSelect, navigate],
+  )
 
   async function handleMarkAllRead() {
     await markMangasRead([...selected])
@@ -274,10 +271,9 @@ export default function Library() {
                   unread={unreadCounts.get(m.id) ?? 0}
                   downloaded={downloadedMangaIds.has(m.id)}
                   selected={selected.has(m.id)}
-                  selectionMode={selectionMode}
-                  onPointerDown={() => handlePointerDown(m.id)}
+                  onPointerDown={handlePointerDown}
                   onPointerUp={clearLongPress}
-                  onClick={(e) => handleCardClick(m, e)}
+                  onClick={handleCardClick}
                 />
               ))}
             </div>
@@ -289,7 +285,7 @@ export default function Library() {
                   manga={m}
                   cover={coverCache.get(m.id)}
                   selected={selected.has(m.id)}
-                  onClick={(e) => handleCardClick(m, e)}
+                  onClick={handleCardClick}
                 />
               ))}
             </div>
@@ -451,13 +447,14 @@ interface GridCardProps {
   unread: number
   downloaded: boolean
   selected: boolean
-  selectionMode: boolean
-  onPointerDown(): void
+  onPointerDown(mangaId: string): void
   onPointerUp(): void
-  onClick(e: React.MouseEvent): void
+  onClick(manga: LibraryManga, e: React.MouseEvent): void
 }
 
-function GridCard({
+// memo : seules les cartes dont les props changent re-rendent (les couvertures
+// arrivent par lots pendant tout le chargement de la bibliothèque).
+const GridCard = memo(function GridCard({
   manga,
   cover,
   unread,
@@ -471,10 +468,10 @@ function GridCard({
     <button
       type="button"
       className="group flex flex-col text-left"
-      onMouseDown={onPointerDown}
+      onMouseDown={() => onPointerDown(manga.id)}
       onMouseUp={onPointerUp}
       onMouseLeave={onPointerUp}
-      onClick={onClick}
+      onClick={(e) => onClick(manga, e)}
     >
       <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-surface-raised">
         <CoverImg cover={cover} alt={manga.title} />
@@ -505,9 +502,9 @@ function GridCard({
       <span className="mt-1.5 line-clamp-2 text-sm text-content">{manga.title}</span>
     </button>
   )
-}
+})
 
-function ListRow({
+const ListRow = memo(function ListRow({
   manga,
   cover,
   selected,
@@ -516,12 +513,12 @@ function ListRow({
   manga: LibraryManga
   cover: string | undefined
   selected: boolean
-  onClick(e: React.MouseEvent): void
+  onClick(manga: LibraryManga, e: React.MouseEvent): void
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => onClick(manga, e)}
       className={[
         'flex items-center gap-3 px-1 py-2 text-left',
         selected ? 'bg-accent/15' : 'hover:bg-fill/5',
@@ -538,4 +535,4 @@ function ListRow({
       </div>
     </button>
   )
-}
+})

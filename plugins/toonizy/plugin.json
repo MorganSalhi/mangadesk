@@ -3,6 +3,6 @@
   "name": "Toonizy",
   "lang": "en",
   "baseUrl": "https://toonizy.com",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "nsfw": true
 }

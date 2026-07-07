@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import pLimit from 'p-limit'
 import { SOURCE_REGISTRY } from '../hooks/useSource'
 import { useRemoteImage } from '../lib/remoteImage'
 import { useBrowseStore } from '../store/browseStore'
@@ -171,15 +172,21 @@ export default function Browse() {
     setLoading(true)
     setError(null)
     void (async () => {
+      // Concurrence bornée : avec les dépôts d'extensions, « toutes les
+      // sources » peut en compter ~100 — les interroger toutes d'un coup
+      // saturerait le réseau et le backend (et ferait bannir l'IP).
+      const limit = pLimit(6)
       const settled = await Promise.allSettled(
-        sources.map(async (src) => {
-          const pageRes = await src.search(submitted, 1, {})
-          return {
-            sourceId: src.id,
-            sourceName: src.name,
-            mangas: pageRes.mangas,
-          } satisfies GlobalSearchResult
-        }),
+        sources.map((src) =>
+          limit(async () => {
+            const pageRes = await src.search(submitted, 1, {})
+            return {
+              sourceId: src.id,
+              sourceName: src.name,
+              mangas: pageRes.mangas,
+            } satisfies GlobalSearchResult
+          }),
+        ),
       )
       if (cancelled) return
       const ok = settled

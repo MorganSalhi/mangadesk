@@ -12,6 +12,7 @@ import type {
 import { createTransport, type Transport } from './cfTransport'
 import {
   DESKTOP_UA,
+  createPageMicroCache,
   inputOptions,
   parseRelativeDate,
   parseScanStatus,
@@ -107,6 +108,8 @@ export class MadaraSource implements Source {
   private dynamicFiltersPromise: Promise<SourceFilterDef[]> | null = null
   /** Nombre de pages du catalogue (cache session, pour getRandom). */
   private catalogPageCount: number | null = null
+  /** Micro-cache de la fiche : getMangaDetails + getChapterList = même page. */
+  private fichePage = createPageMicroCache()
 
   protected readonly cfg: Required<
     Pick<
@@ -397,7 +400,10 @@ export class MadaraSource implements Source {
   }
 
   async getMangaDetails(mangaId: string): Promise<Manga> {
-    const html = await this.transport.fetchHtml(`${this.baseUrl}/${this.cfg.mangaSub}/${mangaId}/`)
+    const html = await this.fichePage.fetch(
+      `${this.baseUrl}/${this.cfg.mangaSub}/${mangaId}/`,
+      (u) => this.transport.fetchHtml(u),
+    )
     const doc = new DOMParser().parseFromString(html, 'text/html')
 
     const title =
@@ -448,11 +454,15 @@ export class MadaraSource implements Source {
       doc = new DOMParser().parseFromString(html, 'text/html')
       if (doc.querySelectorAll('li.wp-manga-chapter').length === 0) {
         // Repli : chapitres parfois inline dans la fiche.
-        const page = await this.transport.fetchHtml(`${mangaUrl}/`)
+        const page = await this.fichePage.fetch(`${mangaUrl}/`, (u) =>
+          this.transport.fetchHtml(u),
+        )
         doc = new DOMParser().parseFromString(page, 'text/html')
       }
     } else {
-      const html = await this.transport.fetchHtml(`${mangaUrl}/`)
+      const html = await this.fichePage.fetch(`${mangaUrl}/`, (u) =>
+        this.transport.fetchHtml(u),
+      )
       doc = new DOMParser().parseFromString(html, 'text/html')
     }
 

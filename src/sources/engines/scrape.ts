@@ -21,6 +21,27 @@ export interface FetchResponse {
   headers?: Record<string, string>
 }
 
+// --- Micro-cache de page -------------------------------------------------------
+
+/**
+ * Micro-cache du DERNIER HTML récupéré (une seule entrée, TTL court).
+ * `getMangaDetails` puis `getChapterList` re-téléchargent la même fiche —
+ * or sur une source Cloudflare en mode `navigate`, chaque récupération coûte
+ * une navigation WebView complète (plusieurs secondes). Le TTL court garantit
+ * qu'un rafraîchissement manuel ultérieur revoit bien le site.
+ */
+export function createPageMicroCache(ttlMs = 20_000) {
+  let entry: { url: string; html: string; at: number } | null = null
+  return {
+    async fetch(url: string, fetcher: (url: string) => Promise<string>): Promise<string> {
+      if (entry && entry.url === url && Date.now() - entry.at < ttlMs) return entry.html
+      const html = await fetcher(url)
+      entry = { url, html, at: Date.now() }
+      return html
+    },
+  }
+}
+
 // --- Valeurs de filtres -------------------------------------------------------
 
 /** Valeur multiselect d'un FilterValues, sinon []. */

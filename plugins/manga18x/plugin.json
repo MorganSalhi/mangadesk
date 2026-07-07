@@ -3,6 +3,6 @@
   "name": "Manga 18x",
   "lang": "en",
   "baseUrl": "https://manga18x.net",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "nsfw": true
 }

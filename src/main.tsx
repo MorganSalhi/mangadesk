@@ -46,17 +46,13 @@ SOURCE_REGISTRY['mangadex'] = new MangaDexSource()
 // En cas d'échec global (backend absent), on monte quand même l'app : seul le
 // catalogue statique sera disponible.
 void (async () => {
-  try {
-    await loadExternalSources()
-  } catch (err) {
-    console.warn('[main] loadExternalSources failed:', err)
-  }
-  // Sources installées depuis un dépôt (repos.json) — même contrainte d'ordre.
-  try {
-    await loadRepoSources()
-  } catch (err) {
-    console.warn('[main] loadRepoSources failed:', err)
-  }
+  // Plugins .js et sources de dépôt (repos.json) sont indépendants → parallèle.
+  await Promise.all([
+    loadExternalSources().catch((err) =>
+      console.warn('[main] loadExternalSources failed:', err),
+    ),
+    loadRepoSources().catch((err) => console.warn('[main] loadRepoSources failed:', err)),
+  ])
   // 3. Monter l'app après chargement des sources externes.
   ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <React.StrictMode>

@@ -13,6 +13,7 @@ import { createTransport, type Transport } from './cfTransport'
 import { probeMaxPage } from './randomCatalog'
 import {
   DESKTOP_UA,
+  createPageMicroCache,
   inputOptions,
   parseScanStatus,
   str,
@@ -127,6 +128,8 @@ export class MangaThemesiaSource implements Source {
   private dynamicFiltersPromise: Promise<SourceFilterDef[]> | null = null
   /** Nombre de pages du catalogue (cache session, pour getRandom). */
   private catalogPageCount: number | null = null
+  /** Micro-cache de la fiche : getMangaDetails + getChapterList = même page. */
+  private fichePage = createPageMicroCache()
 
   protected readonly dir: string
   protected readonly authorLabel: string
@@ -338,7 +341,10 @@ export class MangaThemesiaSource implements Source {
   }
 
   async getMangaDetails(mangaId: string): Promise<Manga> {
-    const html = await this.transport.fetchHtml(`${this.baseUrl}${this.dir}/${mangaId}/`)
+    const html = await this.fichePage.fetch(
+      `${this.baseUrl}${this.dir}/${mangaId}/`,
+      (u) => this.transport.fetchHtml(u),
+    )
     const doc = new DOMParser().parseFromString(html, 'text/html')
 
     const title =
@@ -375,7 +381,10 @@ export class MangaThemesiaSource implements Source {
   }
 
   async getChapterList(mangaId: string): Promise<Chapter[]> {
-    const html = await this.transport.fetchHtml(`${this.baseUrl}${this.dir}/${mangaId}/`)
+    const html = await this.fichePage.fetch(
+      `${this.baseUrl}${this.dir}/${mangaId}/`,
+      (u) => this.transport.fetchHtml(u),
+    )
     const doc = new DOMParser().parseFromString(html, 'text/html')
     const items = Array.from(doc.querySelectorAll('#chapterlist li, div.bxcl li, div.cl li'))
 

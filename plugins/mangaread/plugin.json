@@ -3,6 +3,6 @@
   "name": "Manga Read",
   "lang": "en",
   "baseUrl": "https://mangaread.co",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "nsfw": true
 }

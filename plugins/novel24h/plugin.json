@@ -3,6 +3,6 @@
   "name": "24HNovel",
   "lang": "en",
   "baseUrl": "https://24hnovel.com",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "nsfw": true
 }

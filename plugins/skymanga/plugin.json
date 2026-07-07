@@ -3,6 +3,6 @@
   "name": "Sky Manga",
   "lang": "en",
   "baseUrl": "https://skymanga.work",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "nsfw": true
 }

@@ -3,6 +3,6 @@
   "name": "Manhwa Reads",
   "lang": "en",
   "baseUrl": "https://manhwareads.com",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "nsfw": true
 }

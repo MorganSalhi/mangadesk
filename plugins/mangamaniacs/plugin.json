@@ -3,6 +3,6 @@
   "name": "MangaManiacs",
   "lang": "en",
   "baseUrl": "https://mangamaniacs.org",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "nsfw": true
 }
