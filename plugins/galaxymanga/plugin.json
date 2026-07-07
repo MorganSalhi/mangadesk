@@ -1,0 +1,8 @@
+{
+  "id": "galaxymanga",
+  "name": "Galaxy Manga",
+  "lang": "en",
+  "baseUrl": "https://galaxymanga.io",
+  "version": "1.0.0",
+  "nsfw": true
+}

@@ -54,6 +54,9 @@ interface SettingsState {
   incognitoMode: boolean
   // Demande une confirmation avant de quitter l'app (croix de la fenêtre).
   confirmBeforeExit: boolean
+  // Session 14 — affiche les sources 18+ (flag `isNsfw`, hérité du
+  // ContentWarning Keiyoushi via plugin.json) dans Parcourir et les dépôts.
+  showNsfwSources: boolean
   // Actions
   updateReaderSettings(patch: Partial<ReaderSettings>): void
   updateSetting<K extends keyof SettingsState>(key: K, value: SettingsState[K]): void
@@ -81,6 +84,7 @@ export const useSettingsStore = create<SettingsState>()(
       lastSeenUpdates: Date.now(),
       incognitoMode: false,
       confirmBeforeExit: true,
+      showNsfwSources: true,
 
       updateReaderSettings: (patch) =>
         set({ readerSettings: { ...get().readerSettings, ...patch } }),

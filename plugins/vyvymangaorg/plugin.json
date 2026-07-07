@@ -1,0 +1,8 @@
+{
+  "id": "vyvymangaorg",
+  "name": "VyvyManga.org",
+  "lang": "en",
+  "baseUrl": "https://vyvymanga.org",
+  "version": "1.0.0",
+  "nsfw": true
+}

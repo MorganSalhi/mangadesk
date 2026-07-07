@@ -1,0 +1,8 @@
+{
+  "id": "topmanhuanet",
+  "name": "TopManhua.net",
+  "lang": "en",
+  "baseUrl": "https://topmanhua.net",
+  "version": "1.0.0",
+  "nsfw": true
+}

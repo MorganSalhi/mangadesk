@@ -1,0 +1,8 @@
+{
+  "id": "boratscans",
+  "name": "Borat Scans",
+  "lang": "en",
+  "baseUrl": "https://boratscans.com",
+  "version": "1.0.0",
+  "nsfw": false
+}

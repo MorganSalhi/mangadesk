@@ -1,0 +1,8 @@
+{
+  "id": "toongod",
+  "name": "ToonGod",
+  "lang": "en",
+  "baseUrl": "https://www.toongod.org",
+  "version": "1.0.0",
+  "nsfw": true
+}

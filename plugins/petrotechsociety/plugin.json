@@ -1,0 +1,8 @@
+{
+  "id": "petrotechsociety",
+  "name": "Petrotechsociety",
+  "lang": "en",
+  "baseUrl": "https://www.petrotechsociety.org",
+  "version": "1.0.0",
+  "nsfw": true
+}

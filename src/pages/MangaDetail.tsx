@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 import { useSource } from '../hooks/useSource'
+import { toChapter, toMangaRow, type ChapterRow } from '../lib/dbRows'
+import { fetchRemoteImage } from '../lib/remoteImage'
 import { useLibraryStore } from '../store/libraryStore'
 import { useDownloadStore } from '../store/downloadStore'
 import type { Chapter, Manga } from '../types'
@@ -22,31 +24,6 @@ const STATUS_LABEL: Record<Manga['status'], string> = {
   hiatus: 'En pause',
   cancelled: 'Annulé',
   unknown: 'Inconnu',
-}
-
-// Forme renvoyée par get_chapters (snake_case).
-interface ChapterRow {
-  id: string
-  manga_id: string
-  number: number
-  title: string | null
-  scanlator: string | null
-  date_upload: number | null
-  is_read: number
-  last_page_read: number
-}
-
-function toChapter(r: ChapterRow): Chapter {
-  return {
-    id: r.id,
-    mangaId: r.manga_id,
-    number: r.number,
-    title: r.title ?? '',
-    scanlator: r.scanlator ?? '',
-    dateUpload: r.date_upload ?? 0,
-    isRead: r.is_read === 1,
-    lastPageRead: r.last_page_read,
-  }
 }
 
 /**
@@ -81,25 +58,6 @@ function toRow(c: Chapter, sourceId: string) {
     last_page_read: c.lastPageRead,
     pages_count: null,
     date_fetch: Date.now(),
-  }
-}
-
-/** Map Manga → ligne snake_case pour `upsert_manga`. */
-function toMangaRow(m: Manga) {
-  return {
-    id: m.id,
-    source_id: m.sourceId,
-    remote_id: m.id,
-    title: m.title,
-    cover_url: m.coverUrl,
-    description: m.description,
-    author: m.author,
-    artist: m.artist,
-    status: m.status,
-    genres: JSON.stringify(m.genres),
-    in_library: m.inLibrary ? 1 : 0,
-    date_added: null,
-    last_updated: Date.now(),
   }
 }
 
@@ -188,12 +146,8 @@ export default function MangaDetail() {
           console.error('[MangaDetail] upsert_manga failed:', e, toMangaRow(details)),
         )
 
-        // Couverture (Rust → base64, repli WebView pour CDN Cloudflare, puis URL).
-        invoke<string>('fetch_image_as_base64', {
-          url: details.coverUrl,
-          headers: {},
-          label: details.sourceId ? `cf-${details.sourceId}` : null,
-        })
+        // Couverture (cache partagé ; repli WebView pour CDN Cloudflare, puis URL).
+        fetchRemoteImage(details.coverUrl, { sourceId: details.sourceId })
           .then((data) => !cancelled && setCover(data))
           .catch(() => !cancelled && setCover(details.coverUrl))
 

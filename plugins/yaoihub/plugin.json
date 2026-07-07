@@ -1,0 +1,8 @@
+{
+  "id": "yaoihub",
+  "name": "Yaoihub",
+  "lang": "en",
+  "baseUrl": "https://yaoihub.net",
+  "version": "1.0.0",
+  "nsfw": true
+}

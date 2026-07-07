@@ -9,6 +9,7 @@ import type {
   Source,
 } from '../types'
 import { createTransport, type Transport } from './engines/cfTransport'
+import { DESKTOP_UA } from './engines/scrape'
 
 // ============================================================================
 // Scan-Manga (m.scan-manga.com) — moteur 100% custom. Port fidèle de
@@ -26,11 +27,6 @@ const DOMAIN = 'scan-manga.com'
 // en UA desktop, via navigation réelle (render) pour passer Cloudflare.
 const BASE_URL = `https://www.${DOMAIN}`
 const BASE_IMAGE_URL = `https://static.${DOMAIN}/img/manga`
-
-// UA desktop épinglé (= CF_BROWSER_UA côté Rust) pour ignorer un éventuel UA
-// mobile persisté lors des essais précédents.
-const DESKTOP_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 interface ScanMangaPage {
   f: string // filename

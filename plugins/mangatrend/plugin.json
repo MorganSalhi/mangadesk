@@ -1,0 +1,8 @@
+{
+  "id": "mangatrend",
+  "name": "Manga Trend",
+  "lang": "en",
+  "baseUrl": "https://mangatrend.org",
+  "version": "1.0.0",
+  "nsfw": false
+}

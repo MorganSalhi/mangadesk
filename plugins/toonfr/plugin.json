@@ -1,0 +1,8 @@
+{
+  "id": "toonfr",
+  "name": "Toon FR",
+  "lang": "fr",
+  "baseUrl": "https://toonfr.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

@@ -1,0 +1,8 @@
+{
+  "id": "octopusmanga",
+  "name": "OctopusManga",
+  "lang": "en",
+  "baseUrl": "https://octopusmanga.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

@@ -1,0 +1,8 @@
+{
+  "id": "yaoiscan",
+  "name": "YaoiScan",
+  "lang": "fr",
+  "baseUrl": "https://yaoiscan.fr",
+  "version": "1.0.0",
+  "nsfw": true
+}

@@ -1,0 +1,8 @@
+{
+  "id": "manhuazonghe",
+  "name": "Manhua Zonghe",
+  "lang": "en",
+  "baseUrl": "https://www.manhuazonghe.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

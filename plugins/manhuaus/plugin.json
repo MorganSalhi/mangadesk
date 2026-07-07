@@ -1,0 +1,8 @@
+{
+  "id": "manhuaus",
+  "name": "ManhuaUS",
+  "lang": "en",
+  "baseUrl": "https://manhuaus.com",
+  "version": "1.0.0",
+  "nsfw": false
+}

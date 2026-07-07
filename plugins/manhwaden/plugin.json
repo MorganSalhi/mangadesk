@@ -1,0 +1,8 @@
+{
+  "id": "manhwaden",
+  "name": "ManhwaDen",
+  "lang": "en",
+  "baseUrl": "https://www.manhwaden.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

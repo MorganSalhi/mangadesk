@@ -1,0 +1,8 @@
+{
+  "id": "woopread",
+  "name": "WoopRead",
+  "lang": "en",
+  "baseUrl": "https://woopread.com",
+  "version": "1.0.0",
+  "nsfw": false
+}

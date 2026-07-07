@@ -9,6 +9,7 @@ import type {
   Page,
   Source,
 } from '../types'
+import { strList, type FetchResponse } from './engines/scrape'
 
 // ============================================================================
 // Source MangaDex — API JSON publique (https://api.mangadex.org).
@@ -46,12 +47,6 @@ function rateLimit(): Promise<void> {
   // Swallow rejections dans la chaîne pour ne pas bloquer les appels suivants.
   apiChain = next.catch(() => {})
   return next
-}
-
-interface FetchResponse {
-  status: number
-  body: string
-  headers?: Record<string, string>
 }
 
 function retryAfterMs(res: FetchResponse): number {
@@ -250,9 +245,6 @@ interface MdTagAttributes {
   group?: string
 }
 
-function strList(v: FilterValues[string]): string[] {
-  return Array.isArray(v) ? v : []
-}
 
 export class MangaDexSource implements Source {
   readonly id = 'mangadex'

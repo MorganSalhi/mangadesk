@@ -1,0 +1,8 @@
+{
+  "id": "ksgroupscans",
+  "name": "KSGroupScans",
+  "lang": "en",
+  "baseUrl": "https://ksgroupscans.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

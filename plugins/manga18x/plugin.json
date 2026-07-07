@@ -1,0 +1,8 @@
+{
+  "id": "manga18x",
+  "name": "Manga 18x",
+  "lang": "en",
+  "baseUrl": "https://manga18x.net",
+  "version": "1.0.0",
+  "nsfw": true
+}

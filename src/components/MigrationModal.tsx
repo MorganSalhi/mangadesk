@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { SOURCE_REGISTRY } from '../hooks/useSource'
+import { toMangaRow } from '../lib/dbRows'
 import type { Chapter, Manga, MangaPreview, Source } from '../types'
 
 // ============================================================================
@@ -132,25 +133,6 @@ export default function MigrationModal({ manga, onClose, onSuccess }: MigrationM
     return { items, matched, unmatched }
   }, [sourceChapters, targetChapters])
 
-  // Sérialisation pour le call Rust (snake_case attendu par MangaRow).
-  function toMangaRow(m: Manga) {
-    return {
-      id: m.id,
-      source_id: m.sourceId,
-      remote_id: m.id,
-      title: m.title,
-      cover_url: m.coverUrl,
-      description: m.description,
-      author: m.author,
-      artist: m.artist,
-      status: m.status,
-      genres: JSON.stringify(m.genres),
-      in_library: 1,
-      date_added: null,
-      last_updated: Date.now(),
-    }
-  }
-
   async function runMigration(): Promise<void> {
     if (!targetManga) return
     setStep('running')
@@ -158,7 +140,8 @@ export default function MigrationModal({ manga, onClose, onSuccess }: MigrationM
     try {
       const res = await invoke<MigrationResult>('migrate_manga', {
         sourceMangaId: manga.id,
-        targetManga: toMangaRow(targetManga),
+        // La cible entre en bibliothèque quel que soit son flag d'origine.
+        targetManga: toMangaRow(targetManga, { inLibrary: true }),
         chapterMapping: mapping.items.map((m) => ({
           sourceChapterId: m.sourceChapterId,
           targetChapterId: m.targetChapterId,

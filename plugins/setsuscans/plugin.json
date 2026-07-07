@@ -1,0 +1,8 @@
+{
+  "id": "setsuscans",
+  "name": "Setsu Scans",
+  "lang": "en",
+  "baseUrl": "https://setsuscans.com",
+  "version": "1.0.0",
+  "nsfw": false
+}

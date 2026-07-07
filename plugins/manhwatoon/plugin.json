@@ -1,0 +1,8 @@
+{
+  "id": "manhwatoon",
+  "name": "Manhwa Toon",
+  "lang": "en",
+  "baseUrl": "https://www.manhwatoon.me",
+  "version": "1.0.0",
+  "nsfw": true
+}

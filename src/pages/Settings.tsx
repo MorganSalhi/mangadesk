@@ -18,6 +18,20 @@ import {
   uninstallExternalSource,
 } from '../hooks/useSource'
 import type { ReaderSettings, Source } from '../types'
+import {
+  REPO_SOURCE_IDS,
+  addRepo,
+  fetchRepoIndex,
+  getRepos,
+  installRepoSource,
+  isNewerVersion,
+  removeRepo,
+  uninstallRepoSource,
+  updateRepoSource,
+  type RepoIndex,
+  type RepoRef,
+  type RepoSourceEntry,
+} from '../sources/repo'
 
 // ============================================================================
 // Page Paramètres — onglets verticaux. Toutes les valeurs sont persistées via
@@ -378,18 +392,27 @@ function DownloadsTab() {
 
 interface InstalledSource {
   source: Source
-  external: boolean
+  /** Provenance : intégrée au binaire, plugin .js, ou entrée de dépôt. */
+  origin: 'builtin' | 'plugin' | 'repo'
 }
 
 function listInstalled(): InstalledSource[] {
   return Object.values(SOURCE_REGISTRY)
-    .map((s) => ({ source: s, external: !!EXTERNAL_SOURCE_PATHS[s.id] }))
+    .map((s) => ({
+      source: s,
+      origin: (EXTERNAL_SOURCE_PATHS[s.id]
+        ? 'plugin'
+        : REPO_SOURCE_IDS.has(s.id)
+          ? 'repo'
+          : 'builtin') as InstalledSource['origin'],
+    }))
     .sort((a, b) => a.source.name.localeCompare(b.source.name))
 }
 
 function SourcesTab() {
   const { t } = useTranslation()
   const updateInterval = useSettingsStore((s) => s.updateInterval)
+  const showNsfwSources = useSettingsStore((s) => s.showNsfwSources)
   const update = useSettingsStore((s) => s.updateSetting)
   // Le registre est muté en place ; on déclenche un re-render manuel après
   // install/uninstall via un compteur monotone.
@@ -400,6 +423,35 @@ function SourcesTab() {
   const [modal, setModal] = useState<null | 'install'>(null)
   const [installError, setInstallError] = useState<string | null>(null)
   const [installing, setInstalling] = useState(false)
+
+  // Dépôts de sources (session 14).
+  const repos = getRepos()
+  const [repoUrl, setRepoUrl] = useState('')
+  const [repoError, setRepoError] = useState<string | null>(null)
+  const [repoBusy, setRepoBusy] = useState(false)
+  const [browsing, setBrowsing] = useState<RepoRef | null>(null)
+
+  async function handleAddRepo(): Promise<void> {
+    setRepoError(null)
+    setRepoBusy(true)
+    try {
+      const index = await addRepo(repoUrl)
+      setRepoUrl('')
+      // Ouvre directement le contenu du dépôt fraîchement ajouté.
+      setBrowsing({ url: repoUrl.trim(), name: index.name })
+    } catch (e) {
+      console.error('[repo] add failed:', e)
+      setRepoError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setRepoBusy(false)
+      setTick((n) => n + 1)
+    }
+  }
+
+  async function handleRemoveRepo(url: string): Promise<void> {
+    await removeRepo(url).catch((e) => console.error('[repo] remove failed:', e))
+    setTick((n) => n + 1)
+  }
 
   async function changeInterval(hours: UpdateInterval) {
     update('updateInterval', hours)
@@ -456,10 +508,11 @@ function SourcesTab() {
         setInstallError(`Téléchargement échoué (HTTP ${res.status}).`)
         return
       }
-      // Validation minimale : la source DOIT poser exports.default.
-      if (!/exports\.default\s*=/.test(res.body)) {
+      // Sanity minimale (manuscrit `exports.default` ou bundle esbuild
+      // `module.exports`) — la vraie validation est le chargement lui-même.
+      if (!/exports/.test(res.body)) {
         setInstallError(
-          'Le contenu téléchargé ne contient pas `exports.default = …` — ce n\'est pas un plugin MangaDesk valide.',
+          'Le contenu téléchargé ne ressemble pas à un plugin MangaDesk (aucun `exports`).',
         )
         return
       }
@@ -487,8 +540,9 @@ function SourcesTab() {
     }
   }
 
-  async function uninstall(sourceId: string): Promise<void> {
-    await uninstallExternalSource(sourceId)
+  async function uninstall(sourceId: string, origin: InstalledSource['origin']): Promise<void> {
+    if (origin === 'repo') await uninstallRepoSource(sourceId)
+    else await uninstallExternalSource(sourceId)
     setTick((n) => n + 1)
   }
 
@@ -514,7 +568,7 @@ function SourcesTab() {
           {installed.length === 0 && (
             <p className="py-3 text-xs text-content-4">Aucune source installée.</p>
           )}
-          {installed.map(({ source, external }) => (
+          {installed.map(({ source, origin }) => (
             <div key={source.id} className="flex items-center gap-3 py-2">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-fill/10 text-xs font-semibold uppercase text-content">
                 {source.name.slice(0, 2)}
@@ -525,21 +579,26 @@ function SourcesTab() {
                   {source.id} · {source.baseUrl || '—'}
                 </div>
               </div>
+              {source.isNsfw && (
+                <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] uppercase text-red-300">
+                  18+
+                </span>
+              )}
               <span className="rounded-full bg-fill/10 px-2 py-0.5 text-[10px] uppercase text-content-3">
                 {source.lang}
               </span>
               <span
                 className={[
                   'rounded-full px-2 py-0.5 text-[10px]',
-                  external ? 'bg-accent/15 text-accent' : 'bg-fill/10 text-content-3',
+                  origin === 'builtin' ? 'bg-fill/10 text-content-3' : 'bg-accent/15 text-accent',
                 ].join(' ')}
               >
-                {external ? 'Installée' : 'Intégrée'}
+                {origin === 'builtin' ? 'Intégrée' : origin === 'repo' ? 'Dépôt' : 'Installée'}
               </span>
-              {external ? (
+              {origin !== 'builtin' ? (
                 <button
                   type="button"
-                  onClick={() => void uninstall(source.id)}
+                  onClick={() => void uninstall(source.id, origin)}
                   className="rounded-lg bg-fill/5 px-3 py-1 text-xs text-red-300 hover:bg-red-500/15"
                 >
                   Supprimer
@@ -553,6 +612,69 @@ function SourcesTab() {
       </Card>
 
       <Card>
+        <div className="py-1">
+          <h3 className="text-xs font-semibold uppercase text-content-3">Dépôts de sources</h3>
+          <p className="mt-1 text-xs text-content-4">
+            Un dépôt liste des sources installables en un clic (format{' '}
+            <code>mangadesk-repo/1</code>, voir <code>repo/README.md</code>).
+          </p>
+        </div>
+        <div className="mt-2 flex flex-col divide-y divide-line/5">
+          {repos.length === 0 && (
+            <p className="py-3 text-xs text-content-4">Aucun dépôt ajouté.</p>
+          )}
+          {repos.map((repo) => (
+            <div key={repo.url} className="flex items-center gap-3 py-2">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm text-content">{repo.name}</div>
+                <div className="truncate text-xs text-content-4">{repo.url}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBrowsing(repo)}
+                className="rounded-lg bg-fill/10 px-3 py-1 text-xs text-content hover:bg-fill/20"
+              >
+                Parcourir
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleRemoveRepo(repo.url)}
+                className="rounded-lg bg-fill/5 px-3 py-1 text-xs text-red-300 hover:bg-red-500/15"
+              >
+                Retirer
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex gap-2">
+          <input
+            value={repoUrl}
+            onChange={(e) => setRepoUrl(e.target.value)}
+            placeholder="https://…/index.json"
+            className="min-w-0 flex-1 rounded-lg border border-line/10 bg-surface px-3 py-2 text-sm text-content outline-none focus:border-accent"
+          />
+          <button
+            type="button"
+            disabled={repoBusy || !repoUrl.trim()}
+            onClick={() => void handleAddRepo()}
+            className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {repoBusy ? 'Ajout…' : 'Ajouter'}
+          </button>
+        </div>
+        {repoError && <p className="mt-2 text-xs text-red-400">{repoError}</p>}
+      </Card>
+
+      <Card>
+        <Row label="Afficher les sources 18+">
+          {/* Même principe que Tachiyomi : le flag vient de l'extension
+              (ContentWarning Keiyoushi → nsfw du plugin). Masque le sélecteur
+              de Parcourir et les entrées 18+ des dépôts. */}
+          <Toggle
+            checked={showNsfwSources}
+            onChange={(v) => update('showNsfwSources', v)}
+          />
+        </Row>
         <Row label={t('settings.checkInterval')}>
           <Select<UpdateInterval>
             value={updateInterval}
@@ -586,6 +708,200 @@ function SourcesTab() {
           onUrl={(u) => void installFromUrl(u)}
         />
       )}
+
+      {browsing && (
+        <RepoBrowserModal
+          repo={browsing}
+          onCancel={() => setBrowsing(null)}
+          onChanged={() => setTick((n) => n + 1)}
+        />
+      )}
+    </div>
+  )
+}
+
+function RepoBrowserModal({
+  repo,
+  onCancel,
+  onChanged,
+}: {
+  repo: RepoRef
+  onCancel(): void
+  onChanged(): void
+}) {
+  const [index, setIndex] = useState<RepoIndex | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  /** id en cours d'installation, ou '*' pour « tout installer ». */
+  const [busy, setBusy] = useState<string | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  // Réglage 18+ : les entrées NSFW du dépôt sont masquées ET exclues de
+  // « Tout installer » quand il est désactivé (comportement Tachiyomi).
+  const showNsfwSources = useSettingsStore((s) => s.showNsfwSources)
+  const visibleSources = (index?.sources ?? []).filter((e) => showNsfwSources || !e.nsfw)
+  const hiddenCount = (index?.sources.length ?? 0) - visibleSources.length
+
+  useEffect(() => {
+    let cancelled = false
+    fetchRepoIndex(repo.url)
+      .then((idx) => {
+        if (!cancelled) setIndex(idx)
+      })
+      .catch((e) => {
+        console.error('[repo] browse failed:', e)
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : String(e))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [repo.url])
+
+  async function install(entry: RepoSourceEntry, update = false): Promise<void> {
+    setBusy(entry.id)
+    setErrors((prev) => ({ ...prev, [entry.id]: '' }))
+    try {
+      if (update) await updateRepoSource(entry, repo.url)
+      else await installRepoSource(entry, repo.url)
+    } catch (e) {
+      setErrors((prev) => ({
+        ...prev,
+        [entry.id]: e instanceof Error ? e.message : String(e),
+      }))
+    } finally {
+      setBusy(null)
+      onChanged()
+    }
+  }
+
+  async function installAll(): Promise<void> {
+    if (!index) return
+    setBusy('*')
+    for (const entry of visibleSources) {
+      if (SOURCE_REGISTRY[entry.id]) continue
+      try {
+        await installRepoSource(entry, repo.url)
+      } catch (e) {
+        setErrors((prev) => ({
+          ...prev,
+          [entry.id]: e instanceof Error ? e.message : String(e),
+        }))
+      }
+    }
+    setBusy(null)
+    onChanged()
+  }
+
+  const missingCount = visibleSources.filter((e) => !SOURCE_REGISTRY[e.id]).length
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onCancel}
+      role="presentation"
+    >
+      <div
+        className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-xl border border-line/10 bg-surface-raised p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Sources du dépôt ${repo.name}`}
+      >
+        <header className="mb-3 flex items-center justify-between">
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-semibold text-content">{repo.name}</h2>
+            <p className="truncate text-xs text-content-4">{repo.url}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Fermer"
+            className="ml-3 text-content-3 hover:text-content"
+          >
+            ✕
+          </button>
+        </header>
+
+        {loadError && <p className="text-xs text-red-400">{loadError}</p>}
+        {!index && !loadError && (
+          <p className="py-4 text-sm text-content-3">Chargement du dépôt…</p>
+        )}
+
+        {index && (
+          <>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs text-content-4">
+                {visibleSources.length} source(s) · {missingCount} installable(s)
+                {hiddenCount > 0 && ` · ${hiddenCount} masquée(s) (18+)`}
+              </span>
+              <button
+                type="button"
+                disabled={busy !== null || missingCount === 0}
+                onClick={() => void installAll()}
+                className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+              >
+                {busy === '*' ? 'Installation…' : 'Tout installer'}
+              </button>
+            </div>
+            <div className="flex flex-col divide-y divide-line/5 overflow-y-auto">
+              {visibleSources.map((entry) => {
+                const installed = SOURCE_REGISTRY[entry.id]
+                const present = !!installed
+                // Mise à jour proposée seulement pour les sources venues d'un
+                // dépôt/plugin — jamais pour une intégrée au binaire.
+                const fromRepo =
+                  REPO_SOURCE_IDS.has(entry.id) || !!EXTERNAL_SOURCE_PATHS[entry.id]
+                const updatable =
+                  present && fromRepo && isNewerVersion(entry.version, installed.version)
+                return (
+                  <div key={entry.id} className="flex items-center gap-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm text-content">{entry.name}</span>
+                        {entry.nsfw && (
+                          <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] uppercase text-red-300">
+                            18+
+                          </span>
+                        )}
+                      </div>
+                      <div className="truncate text-xs text-content-4">
+                        {entry.baseUrl} · {entry.engine}
+                      </div>
+                      {errors[entry.id] && (
+                        <p className="text-xs text-red-400">{errors[entry.id]}</p>
+                      )}
+                    </div>
+                    <span className="rounded-full bg-fill/10 px-2 py-0.5 text-[10px] uppercase text-content-3">
+                      {entry.lang}
+                    </span>
+                    {updatable ? (
+                      <button
+                        type="button"
+                        disabled={busy !== null}
+                        onClick={() => void install(entry, true)}
+                        className="rounded-lg bg-accent px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+                      >
+                        {busy === entry.id ? '…' : `Mettre à jour (${entry.version})`}
+                      </button>
+                    ) : present ? (
+                      <span className="rounded-full bg-fill/10 px-2 py-0.5 text-[10px] text-content-3">
+                        {fromRepo ? 'Installée' : 'Intégrée'}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={busy !== null}
+                        onClick={() => void install(entry)}
+                        className="rounded-lg bg-fill/10 px-3 py-1 text-xs text-content hover:bg-fill/20 disabled:opacity-50"
+                      >
+                        {busy === entry.id ? '…' : 'Installer'}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }

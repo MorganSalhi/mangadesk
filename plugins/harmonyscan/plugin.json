@@ -1,0 +1,8 @@
+{
+  "id": "harmonyscan",
+  "name": "Harmony-Scan",
+  "lang": "fr",
+  "baseUrl": "https://harmony-scan.fr",
+  "version": "1.0.0",
+  "nsfw": true
+}

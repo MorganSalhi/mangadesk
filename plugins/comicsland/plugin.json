@@ -1,0 +1,8 @@
+{
+  "id": "comicsland",
+  "name": "Comics Land",
+  "lang": "en",
+  "baseUrl": "https://comicsland.org",
+  "version": "1.0.0",
+  "nsfw": true
+}

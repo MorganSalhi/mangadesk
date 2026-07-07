@@ -1,0 +1,8 @@
+{
+  "id": "mangatx",
+  "name": "MangaTX",
+  "lang": "en",
+  "baseUrl": "https://mangatx.cc",
+  "version": "1.0.0",
+  "nsfw": true
+}

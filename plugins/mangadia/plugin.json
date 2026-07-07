@@ -1,0 +1,8 @@
+{
+  "id": "mangadia",
+  "name": "MangaDia",
+  "lang": "en",
+  "baseUrl": "https://mangadia.com",
+  "version": "1.0.0",
+  "nsfw": false
+}

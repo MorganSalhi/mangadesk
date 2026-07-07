@@ -1,0 +1,8 @@
+{
+  "id": "shibamanga",
+  "name": "Shiba Manga",
+  "lang": "en",
+  "baseUrl": "https://shibamanga.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

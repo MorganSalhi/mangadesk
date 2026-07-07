@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
+import CoverThumb from '../components/ui/CoverThumb'
 
 // ============================================================================
 // Page Statistiques — session 4B.
@@ -103,7 +104,7 @@ export default function Stats() {
                   onClick={() => navigate(`/manga/${s.sourceId}/${s.id}`)}
                   className="flex items-center gap-3 py-2 text-left hover:bg-fill/5"
                 >
-                  <Cover url={s.coverUrl} alt={s.title} />
+                  <CoverThumb url={s.coverUrl} sourceId={s.sourceId} alt={s.title} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm text-content">{s.title}</div>
                     <div className="mt-1 h-1.5 w-full rounded-full bg-fill/10">
@@ -137,26 +138,3 @@ function Stat({ label, value }: { label: string; value: number | string }) {
   )
 }
 
-function Cover({ url, alt }: { url: string | null; alt: string }) {
-  const [src, setSrc] = useState<string | undefined>(undefined)
-  useEffect(() => {
-    if (!url) return
-    let cancelled = false
-    invoke<string>('fetch_image_as_base64', { url, headers: {} })
-      .then((data) => !cancelled && setSrc(data))
-      .catch(() => !cancelled && setSrc(url))
-    return () => {
-      cancelled = true
-    }
-  }, [url])
-
-  return (
-    <div className="h-16 w-12 shrink-0 overflow-hidden rounded bg-surface-raised">
-      {src ? (
-        <img src={src} alt={alt} loading="lazy" className="h-full w-full object-cover" />
-      ) : (
-        <div className="h-full w-full animate-pulse bg-fill/10" />
-      )}
-    </div>
-  )
-}

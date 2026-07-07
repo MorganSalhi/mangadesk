@@ -1,0 +1,8 @@
+{
+  "id": "lagoonscans",
+  "name": "Lagoon Scans",
+  "lang": "en",
+  "baseUrl": "https://lagoonscans.com",
+  "version": "1.0.0",
+  "nsfw": false
+}

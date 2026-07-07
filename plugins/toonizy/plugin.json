@@ -1,0 +1,8 @@
+{
+  "id": "toonizy",
+  "name": "Toonizy",
+  "lang": "en",
+  "baseUrl": "https://toonizy.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

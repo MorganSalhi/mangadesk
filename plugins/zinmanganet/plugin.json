@@ -1,0 +1,8 @@
+{
+  "id": "zinmanganet",
+  "name": "Zinmanga.net",
+  "lang": "en",
+  "baseUrl": "https://zinmanga.net",
+  "version": "1.0.0",
+  "nsfw": false
+}

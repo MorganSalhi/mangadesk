@@ -10,6 +10,7 @@ import { MangaScantradSource } from './sources/mangascantrad'
 import { SushiScanSource } from './sources/sushiscan'
 import { ScanMangaSource } from './sources/scanmanga'
 import { SOURCE_REGISTRY, loadExternalSources } from './hooks/useSource'
+import { loadRepoSources } from './sources/repo'
 import { useSettingsStore } from './store/settingsStore'
 import { applyTheme, applyAccent } from './lib/appearance'
 import './i18n'
@@ -49,6 +50,12 @@ void (async () => {
     await loadExternalSources()
   } catch (err) {
     console.warn('[main] loadExternalSources failed:', err)
+  }
+  // Sources installées depuis un dépôt (repos.json) — même contrainte d'ordre.
+  try {
+    await loadRepoSources()
+  } catch (err) {
+    console.warn('[main] loadRepoSources failed:', err)
   }
   // 3. Monter l'app après chargement des sources externes.
   ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

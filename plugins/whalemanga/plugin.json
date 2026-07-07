@@ -1,0 +1,8 @@
+{
+  "id": "whalemanga",
+  "name": "Whale Manga",
+  "lang": "en",
+  "baseUrl": "https://whalemanga.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

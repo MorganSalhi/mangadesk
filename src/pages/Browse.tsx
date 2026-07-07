@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { invoke } from '@tauri-apps/api/core'
 import { SOURCE_REGISTRY } from '../hooks/useSource'
+import { useRemoteImage } from '../lib/remoteImage'
 import { useBrowseStore } from '../store/browseStore'
+import { useSettingsStore } from '../store/settingsStore'
 import SourceFilterPanel, {
   countActiveFilters,
 } from '../components/browse/SourceFilterPanel'
@@ -69,7 +70,13 @@ export default function Browse() {
   const [notice, setNotice] = useState<string | null>(null)
   const noticeTimer = useRef<number | undefined>(undefined)
 
-  const sources = useMemo(() => Object.values(SOURCE_REGISTRY), [])
+  // Masque les sources 18+ du sélecteur si le réglage est désactivé (la
+  // recherche globale et la source active suivent la même liste).
+  const showNsfwSources = useSettingsStore((s) => s.showNsfwSources)
+  const sources = useMemo(
+    () => Object.values(SOURCE_REGISTRY).filter((s) => showNsfwSources || !s.isNsfw),
+    [showNsfwSources],
+  )
   const isGlobalMode = activeSourceId === ALL_SOURCES
   const source = !isGlobalMode && activeSourceId ? SOURCE_REGISTRY[activeSourceId] ?? null : null
   const filterValues: FilterValues =
@@ -463,21 +470,7 @@ function GlobalResults({
 }
 
 function CoverImage({ manga }: { manga: MangaPreview }) {
-  const [cover, setCover] = useState<string | undefined>(undefined)
-  useEffect(() => {
-    if (!manga.coverUrl) return
-    let cancelled = false
-    invoke<string>('fetch_image_as_base64', {
-      url: manga.coverUrl,
-      headers: {},
-      label: manga.sourceId ? `cf-${manga.sourceId}` : null,
-    })
-      .then((data) => !cancelled && setCover(data))
-      .catch(() => !cancelled && setCover(manga.coverUrl))
-    return () => {
-      cancelled = true
-    }
-  }, [manga.coverUrl, manga.sourceId])
+  const cover = useRemoteImage(manga.coverUrl, { sourceId: manga.sourceId })
 
   // Scan-Manga : la home « dernières sorties » n'expose que le logo-titre large
   // (URL en `_2_`), pas la couverture portrait. On l'affiche en entier (contain)

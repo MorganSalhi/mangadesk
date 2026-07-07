@@ -1,0 +1,8 @@
+{
+  "id": "mangaread",
+  "name": "Manga Read",
+  "lang": "en",
+  "baseUrl": "https://mangaread.co",
+  "version": "1.0.0",
+  "nsfw": true
+}

@@ -1,0 +1,8 @@
+{
+  "id": "manhuafast",
+  "name": "ManhuaFast",
+  "lang": "en",
+  "baseUrl": "https://manhuafast.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

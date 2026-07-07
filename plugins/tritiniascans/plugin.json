@@ -1,0 +1,8 @@
+{
+  "id": "tritiniascans",
+  "name": "TritiniaScans",
+  "lang": "en",
+  "baseUrl": "https://tritinia.org",
+  "version": "1.0.0",
+  "nsfw": false
+}

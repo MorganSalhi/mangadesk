@@ -1,0 +1,8 @@
+{
+  "id": "epicmanga",
+  "name": "EpicManga",
+  "lang": "en",
+  "baseUrl": "https://epicmanga.co",
+  "version": "1.0.0",
+  "nsfw": true
+}

@@ -1191,6 +1191,13 @@ pub async fn purge_database(pool: State<'_, SqlitePool>) -> Result<(), String> {
         .execute(&*pool)
         .await
         .map_err(|e| e.to_string())?;
+    // ⚠️ Rejouer TOUTES les migrations : la 004 (index date_added) manquait
+    // ici (review S13) — après une purge, l'index disparaissait jusqu'au
+    // prochain démarrage de l'app.
+    sqlx::raw_sql(include_str!("../../migrations/004_date_added_index.sql"))
+        .execute(&*pool)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 

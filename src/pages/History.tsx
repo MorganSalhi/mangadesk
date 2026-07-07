@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '../store/settingsStore'
 import Modal from '../components/ui/Modal'
+import CoverThumb from '../components/ui/CoverThumb'
 
 // ============================================================================
 // Page Historique — refondue session 5A (bug 5).
@@ -119,7 +120,7 @@ export default function History() {
                   onClick={() => navigate(`/manga/${e.sourceId}/${e.mangaId}`)}
                   className="flex min-w-0 flex-1 items-center gap-3 text-left hover:bg-fill/5"
                 >
-                  <Cover url={e.coverUrl} alt={e.mangaTitle} />
+                  <CoverThumb url={e.coverUrl} sourceId={e.sourceId} alt={e.mangaTitle} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm text-content">{e.mangaTitle}</div>
                     <div className="truncate text-xs text-content-4">
@@ -181,26 +182,3 @@ export default function History() {
   )
 }
 
-function Cover({ url, alt }: { url: string | null; alt: string }) {
-  const [src, setSrc] = useState<string | undefined>(undefined)
-  useEffect(() => {
-    if (!url) return
-    let cancelled = false
-    invoke<string>('fetch_image_as_base64', { url, headers: {} })
-      .then((data) => !cancelled && setSrc(data))
-      .catch(() => !cancelled && setSrc(url))
-    return () => {
-      cancelled = true
-    }
-  }, [url])
-
-  return (
-    <div className="h-16 w-12 shrink-0 overflow-hidden rounded bg-surface-raised">
-      {src ? (
-        <img src={src} alt={alt} loading="lazy" className="h-full w-full object-cover" />
-      ) : (
-        <div className="h-full w-full animate-pulse bg-fill/10" />
-      )}
-    </div>
-  )
-}

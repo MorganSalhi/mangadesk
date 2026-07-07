@@ -1,0 +1,8 @@
+{
+  "id": "webtoonscan",
+  "name": "WebtoonScan",
+  "lang": "en",
+  "baseUrl": "https://webtoonscan.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

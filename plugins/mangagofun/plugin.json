@@ -1,0 +1,8 @@
+{
+  "id": "mangagofun",
+  "name": "MangaGo.fun",
+  "lang": "en",
+  "baseUrl": "https://www.mangago.fun",
+  "version": "1.0.0",
+  "nsfw": false
+}

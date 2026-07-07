@@ -1,0 +1,8 @@
+{
+  "id": "manhwacomics",
+  "name": "Manhwa Comics",
+  "lang": "en",
+  "baseUrl": "https://manhwacomics.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

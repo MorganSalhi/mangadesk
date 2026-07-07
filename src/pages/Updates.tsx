@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useSettingsStore } from '../store/settingsStore'
+import CoverThumb from '../components/ui/CoverThumb'
 
 // ============================================================================
 // Page Mises à jour — chapitres récemment récupérés (in_library), groupés par
@@ -97,7 +98,7 @@ export default function Updates() {
               <div className="flex flex-col divide-y divide-line/5">
                 {grouped[bucket].map((u) => (
                   <div key={u.id} className="flex items-center gap-3 py-2">
-                    <CoverThumb url={u.coverUrl} alt={u.mangaTitle} />
+                    <CoverThumb url={u.coverUrl} sourceId={u.sourceId} alt={u.mangaTitle} />
                     <div className="min-w-0 flex-1">
                       <div
                         className={[
@@ -132,31 +133,3 @@ export default function Updates() {
   )
 }
 
-function CoverThumb({ url, alt }: { url: string | null; alt: string }) {
-  const [src, setSrc] = useState<string | undefined>(undefined)
-  useEffect(() => {
-    if (!url) return
-    let cancelled = false
-    void (async () => {
-      try {
-        const data = await invoke<string>('fetch_image_as_base64', { url, headers: {} })
-        if (!cancelled) setSrc(data)
-      } catch {
-        if (!cancelled) setSrc(url)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [url])
-
-  return (
-    <div className="h-16 w-12 shrink-0 overflow-hidden rounded bg-surface-raised">
-      {src ? (
-        <img src={src} alt={alt} loading="lazy" className="h-full w-full object-cover" />
-      ) : (
-        <div className="h-full w-full animate-pulse bg-fill/10" />
-      )}
-    </div>
-  )
-}

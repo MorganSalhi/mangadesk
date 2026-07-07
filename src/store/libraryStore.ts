@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
 import pLimit from 'p-limit'
+import { fetchRemoteImage } from '../lib/remoteImage'
 import type {
   Category,
   LibraryFilters,
@@ -258,11 +259,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
           if (get().coverCache.has(manga.id)) return
           let src = manga.coverUrl
           try {
-            src = await invoke<string>('fetch_image_as_base64', {
-              url: manga.coverUrl,
-              headers: {},
-              label: manga.sourceId ? `cf-${manga.sourceId}` : null,
-            })
+            src = await fetchRemoteImage(manga.coverUrl, { sourceId: manga.sourceId })
           } catch {
             // Échec (backend absent) : on retombe sur l'URL directe plutôt que rien.
           }

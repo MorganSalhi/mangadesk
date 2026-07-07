@@ -1,0 +1,8 @@
+{
+  "id": "anisascans",
+  "name": "Anisa Scans",
+  "lang": "en",
+  "baseUrl": "https://anisascans.in",
+  "version": "1.0.0",
+  "nsfw": true
+}

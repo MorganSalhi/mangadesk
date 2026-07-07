@@ -1,0 +1,8 @@
+{
+  "id": "kiwiyascans",
+  "name": "Kiwiya Scans",
+  "lang": "fr",
+  "baseUrl": "https://kiwiyascans.com",
+  "version": "1.0.0",
+  "nsfw": false
+}

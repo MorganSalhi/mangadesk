@@ -1,0 +1,8 @@
+{
+  "id": "decadencescans",
+  "name": "Decadence Scans",
+  "lang": "en",
+  "baseUrl": "https://reader.decadencescans.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

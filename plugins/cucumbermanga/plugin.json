@@ -1,0 +1,8 @@
+{
+  "id": "cucumbermanga",
+  "name": "Cucumber Manga",
+  "lang": "en",
+  "baseUrl": "https://cucumbermanga.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

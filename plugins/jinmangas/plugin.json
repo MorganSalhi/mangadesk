@@ -1,0 +1,8 @@
+{
+  "id": "jinmangas",
+  "name": "Jinmangas",
+  "lang": "en",
+  "baseUrl": "https://jinmangas.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

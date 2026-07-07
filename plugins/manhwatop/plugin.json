@@ -1,0 +1,8 @@
+{
+  "id": "manhwatop",
+  "name": "Manhwatop",
+  "lang": "en",
+  "baseUrl": "https://manhwatop.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

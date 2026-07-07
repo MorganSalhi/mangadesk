@@ -1,0 +1,8 @@
+{
+  "id": "manhwalover",
+  "name": "Manhwalover",
+  "lang": "en",
+  "baseUrl": "https://www.manhwalover.org",
+  "version": "1.0.0",
+  "nsfw": true
+}

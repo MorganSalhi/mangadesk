@@ -1,0 +1,8 @@
+{
+  "id": "linkmanga",
+  "name": "LinkManga",
+  "lang": "en",
+  "baseUrl": "https://linkmanga.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

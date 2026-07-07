@@ -4,36 +4,12 @@ import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import pLimit from 'p-limit'
 import { useSource } from '../hooks/useSource'
+import { toChapter, type ChapterRow } from '../lib/dbRows'
 import { useReaderStore } from '../store/readerStore'
 import { useSettingsStore } from '../store/settingsStore'
 import { useDownloadStore } from '../store/downloadStore'
 import TrackingPanel from '../components/TrackingPanel'
 import type { Chapter, Page, ReaderSettings } from '../types'
-
-// Forme renvoyée par get_chapters (snake_case).
-interface ChapterRow {
-  id: string
-  manga_id: string
-  number: number
-  title: string | null
-  scanlator: string | null
-  date_upload: number | null
-  is_read: number
-  last_page_read: number
-}
-
-function toChapter(r: ChapterRow): Chapter {
-  return {
-    id: r.id,
-    mangaId: r.manga_id,
-    number: r.number,
-    title: r.title ?? '',
-    scanlator: r.scanlator ?? '',
-    dateUpload: r.date_upload ?? 0,
-    isRead: r.is_read === 1,
-    lastPageRead: r.last_page_read,
-  }
-}
 
 interface TrackingEntry {
   provider: string

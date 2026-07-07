@@ -1,0 +1,947 @@
+{
+  "format": "mangadesk-repo/1",
+  "name": "MangaDesk — Sources FR & EN",
+  "description": "Dépôt de sources FR et EN pour MangaDesk (plugins autonomes générés depuis plugins/, configs dérivées des extensions Keiyoushi).",
+  "sources": [
+    {
+      "id": "anisascans",
+      "name": "Anisa Scans",
+      "lang": "en",
+      "baseUrl": "https://anisascans.in",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/anisascans.js"
+    },
+    {
+      "id": "apcomics",
+      "name": "AP Comics",
+      "lang": "en",
+      "baseUrl": "https://apcomics.org",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/apcomics.js"
+    },
+    {
+      "id": "arenascans",
+      "name": "Arena Scans",
+      "lang": "en",
+      "baseUrl": "https://arenascan.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/arenascans.js"
+    },
+    {
+      "id": "armageddon",
+      "name": "Armageddon",
+      "lang": "en",
+      "baseUrl": "https://www.silentquill.net",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/armageddon.js"
+    },
+    {
+      "id": "aryascans",
+      "name": "Arya Scans",
+      "lang": "en",
+      "baseUrl": "https://brainrotcomics.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/aryascans.js"
+    },
+    {
+      "id": "boratscans",
+      "name": "Borat Scans",
+      "lang": "en",
+      "baseUrl": "https://boratscans.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/boratscans.js"
+    },
+    {
+      "id": "bunmanga",
+      "name": "Bun Manga",
+      "lang": "en",
+      "baseUrl": "https://bunmanga.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/bunmanga.js"
+    },
+    {
+      "id": "comicsland",
+      "name": "Comics Land",
+      "lang": "en",
+      "baseUrl": "https://comicsland.org",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/comicsland.js"
+    },
+    {
+      "id": "cucumbermanga",
+      "name": "Cucumber Manga",
+      "lang": "en",
+      "baseUrl": "https://cucumbermanga.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/cucumbermanga.js"
+    },
+    {
+      "id": "decadencescans",
+      "name": "Decadence Scans",
+      "lang": "en",
+      "baseUrl": "https://reader.decadencescans.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/decadencescans.js"
+    },
+    {
+      "id": "dragontea",
+      "name": "DragonTea",
+      "lang": "en",
+      "baseUrl": "https://dragontea.ink",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/dragontea.js"
+    },
+    {
+      "id": "epicmanga",
+      "name": "EpicManga",
+      "lang": "en",
+      "baseUrl": "https://epicmanga.co",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/epicmanga.js"
+    },
+    {
+      "id": "ero18x",
+      "name": "Ero18x",
+      "lang": "en",
+      "baseUrl": "https://ero18x.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/ero18x.js"
+    },
+    {
+      "id": "fablescans",
+      "name": "Fable Scans",
+      "lang": "en",
+      "baseUrl": "https://fablescans.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/fablescans.js"
+    },
+    {
+      "id": "gakamangas",
+      "name": "GakaMangas",
+      "lang": "en",
+      "baseUrl": "https://gakamangas.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/gakamangas.js"
+    },
+    {
+      "id": "galaxydegenscans",
+      "name": "GalaxyDegenScans",
+      "lang": "en",
+      "baseUrl": "https://gdscans.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/galaxydegenscans.js"
+    },
+    {
+      "id": "galaxymanga",
+      "name": "Galaxy Manga",
+      "lang": "en",
+      "baseUrl": "https://galaxymanga.io",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/galaxymanga.js"
+    },
+    {
+      "id": "gingertoon",
+      "name": "GingeRTooN",
+      "lang": "en",
+      "baseUrl": "https://gingertoon.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/gingertoon.js"
+    },
+    {
+      "id": "harmonyscan",
+      "name": "Harmony-Scan",
+      "lang": "fr",
+      "baseUrl": "https://harmony-scan.fr",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/harmonyscan.js"
+    },
+    {
+      "id": "jinmangas",
+      "name": "Jinmangas",
+      "lang": "en",
+      "baseUrl": "https://jinmangas.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/jinmangas.js"
+    },
+    {
+      "id": "kingofshojo",
+      "name": "King of Shojo",
+      "lang": "en",
+      "baseUrl": "https://kingofshojo.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/kingofshojo.js"
+    },
+    {
+      "id": "kiwiyascans",
+      "name": "Kiwiya Scans",
+      "lang": "fr",
+      "baseUrl": "https://kiwiyascans.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/kiwiyascans.js"
+    },
+    {
+      "id": "ksgroupscans",
+      "name": "KSGroupScans",
+      "lang": "en",
+      "baseUrl": "https://ksgroupscans.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/ksgroupscans.js"
+    },
+    {
+      "id": "lagoonscans",
+      "name": "Lagoon Scans",
+      "lang": "en",
+      "baseUrl": "https://lagoonscans.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/lagoonscans.js"
+    },
+    {
+      "id": "lhtranslation",
+      "name": "LHTranslation",
+      "lang": "en",
+      "baseUrl": "https://lhtranslation.net",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/lhtranslation.js"
+    },
+    {
+      "id": "linkmanga",
+      "name": "LinkManga",
+      "lang": "en",
+      "baseUrl": "https://linkmanga.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/linkmanga.js"
+    },
+    {
+      "id": "manga18x",
+      "name": "Manga 18x",
+      "lang": "en",
+      "baseUrl": "https://manga18x.net",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manga18x.js"
+    },
+    {
+      "id": "mangadia",
+      "name": "MangaDia",
+      "lang": "en",
+      "baseUrl": "https://mangadia.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/mangadia.js"
+    },
+    {
+      "id": "mangafree",
+      "name": "Mangafree",
+      "lang": "en",
+      "baseUrl": "https://mangafree.info",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/mangafree.js"
+    },
+    {
+      "id": "mangagofun",
+      "name": "MangaGo.fun",
+      "lang": "en",
+      "baseUrl": "https://www.mangago.fun",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/mangagofun.js"
+    },
+    {
+      "id": "mangahubfr",
+      "name": "MangaHub.fr",
+      "lang": "fr",
+      "baseUrl": "https://mangahub.fr",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/mangahubfr.js"
+    },
+    {
+      "id": "mangaka",
+      "name": "MangaKa",
+      "lang": "en",
+      "baseUrl": "https://mangaka.cc",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/mangaka.js"
+    },
+    {
+      "id": "mangakiss",
+      "name": "Manga Kiss",
+      "lang": "en",
+      "baseUrl": "https://mangakiss.org",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/mangakiss.js"
+    },
+    {
+      "id": "mangamaniacs",
+      "name": "MangaManiacs",
+      "lang": "en",
+      "baseUrl": "https://mangamaniacs.org",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/mangamaniacs.js"
+    },
+    {
+      "id": "mangaowlio",
+      "name": "MangaOwl.io (unoriginal)",
+      "lang": "en",
+      "baseUrl": "https://mangaowl.io",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/mangaowlio.js"
+    },
+    {
+      "id": "mangaread",
+      "name": "Manga Read",
+      "lang": "en",
+      "baseUrl": "https://mangaread.co",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/mangaread.js"
+    },
+    {
+      "id": "mangareadorg",
+      "name": "MangaRead.org",
+      "lang": "en",
+      "baseUrl": "https://www.mangaread.org",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/mangareadorg.js"
+    },
+    {
+      "id": "mangasscans",
+      "name": "Mangas Scans",
+      "lang": "fr",
+      "baseUrl": "https://mangas-scans.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/mangasscans.js"
+    },
+    {
+      "id": "mangasushi",
+      "name": "Mangasushi",
+      "lang": "en",
+      "baseUrl": "https://mangasushi.org",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/mangasushi.js"
+    },
+    {
+      "id": "mangatrend",
+      "name": "Manga Trend",
+      "lang": "en",
+      "baseUrl": "https://mangatrend.org",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/mangatrend.js"
+    },
+    {
+      "id": "mangatx",
+      "name": "MangaTX",
+      "lang": "en",
+      "baseUrl": "https://mangatx.cc",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/mangatx.js"
+    },
+    {
+      "id": "manhuafast",
+      "name": "ManhuaFast",
+      "lang": "en",
+      "baseUrl": "https://manhuafast.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manhuafast.js"
+    },
+    {
+      "id": "manhuafastnet",
+      "name": "ManhuaFast.net (unoriginal)",
+      "lang": "en",
+      "baseUrl": "https://manhuafast.net",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/manhuafastnet.js"
+    },
+    {
+      "id": "manhuahot",
+      "name": "ManhuaHot",
+      "lang": "en",
+      "baseUrl": "https://manhuahot.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/manhuahot.js"
+    },
+    {
+      "id": "manhuaplus",
+      "name": "Manhua Plus",
+      "lang": "en",
+      "baseUrl": "https://manhuaplus.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/manhuaplus.js"
+    },
+    {
+      "id": "manhuaus",
+      "name": "ManhuaUS",
+      "lang": "en",
+      "baseUrl": "https://manhuaus.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/manhuaus.js"
+    },
+    {
+      "id": "manhuazonghe",
+      "name": "Manhua Zonghe",
+      "lang": "en",
+      "baseUrl": "https://www.manhuazonghe.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manhuazonghe.js"
+    },
+    {
+      "id": "manhwa18org",
+      "name": "Manhwa18.org",
+      "lang": "en",
+      "baseUrl": "https://manhwa18.org",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manhwa18org.js"
+    },
+    {
+      "id": "manhwa68",
+      "name": "Manhwa68",
+      "lang": "en",
+      "baseUrl": "https://manhwa68.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manhwa68.js"
+    },
+    {
+      "id": "manhwacomics",
+      "name": "Manhwa Comics",
+      "lang": "en",
+      "baseUrl": "https://manhwacomics.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manhwacomics.js"
+    },
+    {
+      "id": "manhwaden",
+      "name": "ManhwaDen",
+      "lang": "en",
+      "baseUrl": "https://www.manhwaden.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manhwaden.js"
+    },
+    {
+      "id": "manhwaget",
+      "name": "ManhwaGet",
+      "lang": "en",
+      "baseUrl": "https://manhwaget.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/manhwaget.js"
+    },
+    {
+      "id": "manhwajoy",
+      "name": "Manhwajoy",
+      "lang": "en",
+      "baseUrl": "https://manhwajoy.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manhwajoy.js"
+    },
+    {
+      "id": "manhwalover",
+      "name": "Manhwalover",
+      "lang": "en",
+      "baseUrl": "https://www.manhwalover.org",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manhwalover.js"
+    },
+    {
+      "id": "manhwamanhua",
+      "name": "ManhwaManhua",
+      "lang": "en",
+      "baseUrl": "https://manhwamanhua.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manhwamanhua.js"
+    },
+    {
+      "id": "manhwanex",
+      "name": "ManhwaNex",
+      "lang": "en",
+      "baseUrl": "https://manhwanex.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/manhwanex.js"
+    },
+    {
+      "id": "manhwareads",
+      "name": "Manhwa Reads",
+      "lang": "en",
+      "baseUrl": "https://manhwareads.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manhwareads.js"
+    },
+    {
+      "id": "manhwatoon",
+      "name": "Manhwa Toon",
+      "lang": "en",
+      "baseUrl": "https://www.manhwatoon.me",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manhwatoon.js"
+    },
+    {
+      "id": "manhwatop",
+      "name": "Manhwatop",
+      "lang": "en",
+      "baseUrl": "https://manhwatop.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manhwatop.js"
+    },
+    {
+      "id": "manhwax",
+      "name": "Manhwax",
+      "lang": "en",
+      "baseUrl": "https://manhwax.top",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/manhwax.js"
+    },
+    {
+      "id": "novel24h",
+      "name": "24HNovel",
+      "lang": "en",
+      "baseUrl": "https://24hnovel.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/novel24h.js"
+    },
+    {
+      "id": "octopusmanga",
+      "name": "OctopusManga",
+      "lang": "en",
+      "baseUrl": "https://octopusmanga.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/octopusmanga.js"
+    },
+    {
+      "id": "orchisasia",
+      "name": "Orchisasia",
+      "lang": "en",
+      "baseUrl": "https://www.orchisasia.org",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/orchisasia.js"
+    },
+    {
+      "id": "pawmanga",
+      "name": "Paw Manga",
+      "lang": "en",
+      "baseUrl": "https://pawmanga.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/pawmanga.js"
+    },
+    {
+      "id": "petrotechsociety",
+      "name": "Petrotechsociety",
+      "lang": "en",
+      "baseUrl": "https://www.petrotechsociety.org",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/petrotechsociety.js"
+    },
+    {
+      "id": "plutoscans",
+      "name": "FlameScans.lol",
+      "lang": "en",
+      "baseUrl": "https://flamescans.lol",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/plutoscans.js"
+    },
+    {
+      "id": "pmscans",
+      "name": "Rackus",
+      "lang": "en",
+      "baseUrl": "https://rackusreads.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/pmscans.js"
+    },
+    {
+      "id": "ravenscans",
+      "name": "Raven Scans",
+      "lang": "en",
+      "baseUrl": "https://ravenscans.org",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/ravenscans.js"
+    },
+    {
+      "id": "rizzcomicunoriginal",
+      "name": "Rizz Comic (unoriginal)",
+      "lang": "en",
+      "baseUrl": "https://rizzcomic.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/rizzcomicunoriginal.js"
+    },
+    {
+      "id": "rosesquadscans",
+      "name": "Rose Squad Scans",
+      "lang": "en",
+      "baseUrl": "https://rosesquadscans.aishiteru.org",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/rosesquadscans.js"
+    },
+    {
+      "id": "s2manga",
+      "name": "S2Manga",
+      "lang": "en",
+      "baseUrl": "https://s2read.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/s2manga.js"
+    },
+    {
+      "id": "setsuscans",
+      "name": "Setsu Scans",
+      "lang": "en",
+      "baseUrl": "https://setsuscans.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/setsuscans.js"
+    },
+    {
+      "id": "shibamanga",
+      "name": "Shiba Manga",
+      "lang": "en",
+      "baseUrl": "https://shibamanga.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/shibamanga.js"
+    },
+    {
+      "id": "skymanga",
+      "name": "Sky Manga",
+      "lang": "en",
+      "baseUrl": "https://skymanga.work",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/skymanga.js"
+    },
+    {
+      "id": "sleepytranslations",
+      "name": "Sleepy Translations",
+      "lang": "en",
+      "baseUrl": "https://sleepytranslations.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/sleepytranslations.js"
+    },
+    {
+      "id": "spmanhwa",
+      "name": "Spmanhwa",
+      "lang": "en",
+      "baseUrl": "https://spmanhwa.online",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/spmanhwa.js"
+    },
+    {
+      "id": "sushiscanfr",
+      "name": "Sushiscan.fr",
+      "lang": "fr",
+      "baseUrl": "https://sushiscan.fr",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/sushiscanfr.js"
+    },
+    {
+      "id": "tcbscansunoriginal",
+      "name": "TCB Scans (Unoriginal)",
+      "lang": "en",
+      "baseUrl": "https://tcbscanonepiecechapters.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/tcbscansunoriginal.js"
+    },
+    {
+      "id": "toon18",
+      "name": "Toon18",
+      "lang": "en",
+      "baseUrl": "https://toon18.to",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/toon18.js"
+    },
+    {
+      "id": "toonfr",
+      "name": "Toon FR",
+      "lang": "fr",
+      "baseUrl": "https://toonfr.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/toonfr.js"
+    },
+    {
+      "id": "toongod",
+      "name": "ToonGod",
+      "lang": "en",
+      "baseUrl": "https://www.toongod.org",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/toongod.js"
+    },
+    {
+      "id": "toonizy",
+      "name": "Toonizy",
+      "lang": "en",
+      "baseUrl": "https://toonizy.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/toonizy.js"
+    },
+    {
+      "id": "topmanhuanet",
+      "name": "TopManhua.net",
+      "lang": "en",
+      "baseUrl": "https://topmanhua.net",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/topmanhuanet.js"
+    },
+    {
+      "id": "tritiniascans",
+      "name": "TritiniaScans",
+      "lang": "en",
+      "baseUrl": "https://tritinia.org",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/tritiniascans.js"
+    },
+    {
+      "id": "vyvymangaorg",
+      "name": "VyvyManga.org",
+      "lang": "en",
+      "baseUrl": "https://vyvymanga.org",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/vyvymangaorg.js"
+    },
+    {
+      "id": "webtoonscan",
+      "name": "WebtoonScan",
+      "lang": "en",
+      "baseUrl": "https://webtoonscan.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/webtoonscan.js"
+    },
+    {
+      "id": "whalemanga",
+      "name": "Whale Manga",
+      "lang": "en",
+      "baseUrl": "https://whalemanga.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/whalemanga.js"
+    },
+    {
+      "id": "woopread",
+      "name": "WoopRead",
+      "lang": "en",
+      "baseUrl": "https://woopread.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/woopread.js"
+    },
+    {
+      "id": "wuxiaworld",
+      "name": "WuxiaWorld",
+      "lang": "en",
+      "baseUrl": "https://wuxiaworld.site",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/wuxiaworld.js"
+    },
+    {
+      "id": "yakshacomics",
+      "name": "YakshaComics",
+      "lang": "en",
+      "baseUrl": "https://yakshacomics.com",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/yakshacomics.js"
+    },
+    {
+      "id": "yaoihub",
+      "name": "Yaoihub",
+      "lang": "en",
+      "baseUrl": "https://yaoihub.net",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/yaoihub.js"
+    },
+    {
+      "id": "yaoiscan",
+      "name": "YaoiScan",
+      "lang": "fr",
+      "baseUrl": "https://yaoiscan.fr",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/yaoiscan.js"
+    },
+    {
+      "id": "yaoiscan-en",
+      "name": "YaoiScan (EN)",
+      "lang": "en",
+      "baseUrl": "https://yaoiscan.com",
+      "version": "1.0.0",
+      "nsfw": true,
+      "engine": "js",
+      "url": "plugins/yaoiscan-en.js"
+    },
+    {
+      "id": "zinmanganet",
+      "name": "Zinmanga.net",
+      "lang": "en",
+      "baseUrl": "https://zinmanga.net",
+      "version": "1.0.0",
+      "nsfw": false,
+      "engine": "js",
+      "url": "plugins/zinmanganet.js"
+    }
+  ]
+}

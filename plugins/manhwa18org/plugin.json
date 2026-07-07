@@ -1,0 +1,8 @@
+{
+  "id": "manhwa18org",
+  "name": "Manhwa18.org",
+  "lang": "en",
+  "baseUrl": "https://manhwa18.org",
+  "version": "1.0.0",
+  "nsfw": true
+}

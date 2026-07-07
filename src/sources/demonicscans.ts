@@ -1,5 +1,11 @@
 import { invoke } from '@tauri-apps/api/core'
 import { pickRandom, probeMaxPage } from './engines/randomCatalog'
+import {
+  DESKTOP_UA,
+  parseRelativeDate,
+  strList,
+  type FetchResponse,
+} from './engines/scrape'
 import type {
   Chapter,
   FilterValues,
@@ -28,19 +34,10 @@ import type {
 //   un diagnostic ultérieur dans la console webview.
 // ============================================================================
 
-const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-
-interface FetchResponse {
-  status: number
-  body: string
-  headers?: Record<string, string>
-}
-
 // --- Filtres (session 13) ------------------------------------------------------
-// Formulaire /advanced.php : genres[] (ids, POST uniquement — les params GET
-// sont ignorés par le site), status (all/ongoing/completed), orderby
-// (VIEWS/ID/NAME). Pagination via `?page=N` dans l'URL, filtres dans le corps.
+// Formulaire /advanced.php : genres (ids), status (all/ongoing/completed),
+// orderby (VIEWS/ID/NAME). Utilisés en GET via les conventions des liens de
+// pagination du site — `genre[]` (sans s) + `list=N` — cf. advancedUrl().
 const STATIC_FILTERS: SourceFilterDef[] = [
   {
     id: 'sort',
@@ -66,9 +63,6 @@ const STATIC_FILTERS: SourceFilterDef[] = [
   },
 ]
 
-function strList(v: FilterValues[string]): string[] {
-  return Array.isArray(v) ? v : []
-}
 
 export class DemonicScansSource implements Source {
   readonly id = 'demonicscans'
@@ -90,7 +84,7 @@ export class DemonicScansSource implements Source {
       res = await invoke<FetchResponse>('fetch_url', {
         url,
         headers: {
-          'User-Agent': UA,
+          'User-Agent': DESKTOP_UA,
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
           Referer: this.baseUrl,
@@ -392,7 +386,7 @@ export class DemonicScansSource implements Source {
           number,
           title: link.textContent?.trim() || `Chapter ${number}`,
           scanlator: 'DemonicScans',
-          dateUpload: parseHumanDate(dateText),
+          dateUpload: parseRelativeDate(dateText),
           isRead: false,
           lastPageRead: 0,
         })
@@ -475,7 +469,7 @@ export class DemonicScansSource implements Source {
             return urls.map((u, index) => ({
               index,
               imageUrl: absolutize(u),
-              headers: { Referer: url, 'User-Agent': UA },
+              headers: { Referer: url, 'User-Agent': DESKTOP_UA },
             }))
           }
         }
@@ -499,7 +493,7 @@ export class DemonicScansSource implements Source {
       pages.push({
         index,
         imageUrl: absolutize(cleaned),
-        headers: { Referer: url, 'User-Agent': UA },
+        headers: { Referer: url, 'User-Agent': DESKTOP_UA },
       })
     })
 
@@ -510,24 +504,3 @@ export class DemonicScansSource implements Source {
   }
 }
 
-function parseHumanDate(text: string): number {
-  const trimmed = text.trim()
-  if (!trimmed) return 0
-  const direct = Date.parse(trimmed)
-  if (!Number.isNaN(direct)) return direct
-  const rel = trimmed.toLowerCase().match(/(\d+)\s*(second|minute|hour|day|week|month|year)/)
-  if (rel) {
-    const n = parseInt(rel[1], 10)
-    const u = rel[2]
-    const factor =
-      u === 'second' ? 1000
-      : u === 'minute' ? 60_000
-      : u === 'hour' ? 3_600_000
-      : u === 'day' ? 86_400_000
-      : u === 'week' ? 7 * 86_400_000
-      : u === 'month' ? 30 * 86_400_000
-      : 365 * 86_400_000
-    return Date.now() - n * factor
-  }
-  return 0
-}

@@ -1,0 +1,8 @@
+{
+  "id": "mangaka",
+  "name": "MangaKa",
+  "lang": "en",
+  "baseUrl": "https://mangaka.cc",
+  "version": "1.0.0",
+  "nsfw": false
+}

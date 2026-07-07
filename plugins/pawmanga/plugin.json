@@ -1,0 +1,8 @@
+{
+  "id": "pawmanga",
+  "name": "Paw Manga",
+  "lang": "en",
+  "baseUrl": "https://pawmanga.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

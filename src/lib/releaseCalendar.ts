@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { createTransport } from '../sources/engines/cfTransport'
+import { DESKTOP_UA } from '../sources/engines/scrape'
 
 // ============================================================================
 // Calendrier des sorties manga (session 13).
@@ -36,12 +37,10 @@ export interface MangaRelease {
 }
 
 const BASE = 'https://www.nautiljon.com'
-const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 /** En-têtes à utiliser pour charger les couvertures (anti-hotlink). */
 export const CALENDAR_IMAGE_HEADERS: Record<string, string> = {
   Referer: `${BASE}/planning/manga/`,
-  'User-Agent': UA,
+  'User-Agent': DESKTOP_UA,
 }
 
 const CACHE_TTL_MS = 12 * 3_600_000

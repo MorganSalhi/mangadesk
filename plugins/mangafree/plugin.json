@@ -1,0 +1,8 @@
+{
+  "id": "mangafree",
+  "name": "Mangafree",
+  "lang": "en",
+  "baseUrl": "https://mangafree.info",
+  "version": "1.0.0",
+  "nsfw": true
+}

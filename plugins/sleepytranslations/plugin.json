@@ -1,0 +1,8 @@
+{
+  "id": "sleepytranslations",
+  "name": "Sleepy Translations",
+  "lang": "en",
+  "baseUrl": "https://sleepytranslations.com",
+  "version": "1.0.0",
+  "nsfw": false
+}

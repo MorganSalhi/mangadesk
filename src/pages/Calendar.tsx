@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { invoke } from '@tauri-apps/api/core'
 import {
   CALENDAR_IMAGE_HEADERS,
   fetchMonthlyReleases,
@@ -11,6 +10,7 @@ import {
   type ChapterForecast,
 } from '../lib/chapterSchedule'
 import { useBrowseStore } from '../store/browseStore'
+import CoverThumb from '../components/ui/CoverThumb'
 
 // ============================================================================
 // Page Calendrier (session 13) — deux onglets :
@@ -245,9 +245,11 @@ function ForecastCard({ forecast }: { forecast: ChapterForecast }) {
       className="group flex items-stretch gap-3 rounded-xl border border-line/5 bg-surface-raised p-2.5 text-left transition-colors hover:border-accent/40"
     >
       <CoverThumb
-        coverUrl={forecast.coverUrl}
+        url={forecast.coverUrl}
         sourceId={forecast.sourceId}
         alt={forecast.title}
+        className="h-20 w-14 rounded-lg"
+        imgClassName="transition-transform duration-300 group-hover:scale-105"
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="line-clamp-2 text-sm font-medium text-content">
@@ -275,50 +277,6 @@ function ForecastCard({ forecast }: { forecast: ChapterForecast }) {
 
 function formatNumber(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1)
-}
-
-/** Vignette générique (bibliothèque ou Nautiljon) via fetch_image_as_base64. */
-function CoverThumb({
-  coverUrl,
-  sourceId,
-  alt,
-  headers,
-}: {
-  coverUrl: string | null
-  sourceId?: string
-  alt: string
-  headers?: Record<string, string>
-}) {
-  const [cover, setCover] = useState<string | null>(null)
-  useEffect(() => {
-    if (!coverUrl) return
-    let cancelled = false
-    invoke<string>('fetch_image_as_base64', {
-      url: coverUrl,
-      headers: headers ?? {},
-      label: sourceId ? `cf-${sourceId}` : null,
-    })
-      .then((data) => !cancelled && setCover(data))
-      .catch(() => !cancelled && setCover(coverUrl))
-    return () => {
-      cancelled = true
-    }
-  }, [coverUrl, sourceId, headers])
-
-  return (
-    <div className="h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-fill/10">
-      {cover ? (
-        <img
-          src={cover}
-          alt={alt}
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
-      ) : (
-        <div className="h-full w-full animate-pulse bg-fill/10" />
-      )}
-    </div>
-  )
 }
 
 // ============================================================================
@@ -506,10 +464,12 @@ function ReleaseCard({ release }: { release: MangaRelease }) {
       className="group flex items-stretch gap-3 rounded-xl border border-line/5 bg-surface-raised p-2.5 text-left transition-colors hover:border-accent/40"
     >
       <CoverThumb
-        coverUrl={release.coverUrl}
+        url={release.coverUrl}
         headers={CALENDAR_IMAGE_HEADERS}
         sourceId="nautiljon"
         alt=""
+        className="h-20 w-14 rounded-lg"
+        imgClassName="transition-transform duration-300 group-hover:scale-105"
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="line-clamp-2 text-sm font-medium text-content">

@@ -1,0 +1,8 @@
+{
+  "id": "manhwareads",
+  "name": "Manhwa Reads",
+  "lang": "en",
+  "baseUrl": "https://manhwareads.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

@@ -1,0 +1,8 @@
+{
+  "id": "gakamangas",
+  "name": "GakaMangas",
+  "lang": "en",
+  "baseUrl": "https://gakamangas.com",
+  "version": "1.0.0",
+  "nsfw": false
+}

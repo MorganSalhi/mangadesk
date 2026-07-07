@@ -1,0 +1,8 @@
+{
+  "id": "galaxydegenscans",
+  "name": "GalaxyDegenScans",
+  "lang": "en",
+  "baseUrl": "https://gdscans.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

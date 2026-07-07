@@ -1,0 +1,8 @@
+{
+  "id": "manhuaplus",
+  "name": "Manhua Plus",
+  "lang": "en",
+  "baseUrl": "https://manhuaplus.com",
+  "version": "1.0.0",
+  "nsfw": false
+}

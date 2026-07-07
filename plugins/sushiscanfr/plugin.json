@@ -1,0 +1,8 @@
+{
+  "id": "sushiscanfr",
+  "name": "Sushiscan.fr",
+  "lang": "fr",
+  "baseUrl": "https://sushiscan.fr",
+  "version": "1.0.0",
+  "nsfw": true
+}

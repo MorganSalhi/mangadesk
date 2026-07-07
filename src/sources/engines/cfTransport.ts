@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { DESKTOP_UA as UA, type FetchResponse } from './scrape'
 
 // ============================================================================
 // Transport HTTP réutilisable pour les sources scrapées.
@@ -11,15 +12,6 @@ import { invoke } from '@tauri-apps/api/core'
 // Chaque source a sa propre fenêtre solveur (`cf-{sourceId}`) et ses propres
 // préférences persistées, pour que plusieurs sources Cloudflare coexistent.
 // ============================================================================
-
-const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-
-interface FetchResponse {
-  status: number
-  body: string
-  headers?: Record<string, string>
-}
 
 interface CloudflareClearance {
   cookie: string

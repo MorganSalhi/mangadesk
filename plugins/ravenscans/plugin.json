@@ -1,0 +1,8 @@
+{
+  "id": "ravenscans",
+  "name": "Raven Scans",
+  "lang": "en",
+  "baseUrl": "https://ravenscans.org",
+  "version": "1.0.0",
+  "nsfw": true
+}

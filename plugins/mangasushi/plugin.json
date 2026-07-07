@@ -1,0 +1,8 @@
+{
+  "id": "mangasushi",
+  "name": "Mangasushi",
+  "lang": "en",
+  "baseUrl": "https://mangasushi.org",
+  "version": "1.0.0",
+  "nsfw": false
+}

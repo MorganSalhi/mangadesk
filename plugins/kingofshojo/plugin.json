@@ -1,0 +1,8 @@
+{
+  "id": "kingofshojo",
+  "name": "King of Shojo",
+  "lang": "en",
+  "baseUrl": "https://kingofshojo.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

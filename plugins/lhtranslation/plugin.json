@@ -1,0 +1,8 @@
+{
+  "id": "lhtranslation",
+  "name": "LHTranslation",
+  "lang": "en",
+  "baseUrl": "https://lhtranslation.net",
+  "version": "1.0.0",
+  "nsfw": false
+}

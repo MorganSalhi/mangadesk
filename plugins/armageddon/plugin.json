@@ -1,0 +1,8 @@
+{
+  "id": "armageddon",
+  "name": "Armageddon",
+  "lang": "en",
+  "baseUrl": "https://www.silentquill.net",
+  "version": "1.0.0",
+  "nsfw": true
+}

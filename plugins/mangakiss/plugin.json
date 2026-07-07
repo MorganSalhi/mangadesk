@@ -1,0 +1,8 @@
+{
+  "id": "mangakiss",
+  "name": "Manga Kiss",
+  "lang": "en",
+  "baseUrl": "https://mangakiss.org",
+  "version": "1.0.0",
+  "nsfw": false
+}

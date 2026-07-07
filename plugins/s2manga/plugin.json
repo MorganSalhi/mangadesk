@@ -1,0 +1,8 @@
+{
+  "id": "s2manga",
+  "name": "S2Manga",
+  "lang": "en",
+  "baseUrl": "https://s2read.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

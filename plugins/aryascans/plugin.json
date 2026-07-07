@@ -1,0 +1,8 @@
+{
+  "id": "aryascans",
+  "name": "Arya Scans",
+  "lang": "en",
+  "baseUrl": "https://brainrotcomics.com",
+  "version": "1.0.0",
+  "nsfw": false
+}

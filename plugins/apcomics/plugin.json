@@ -1,0 +1,8 @@
+{
+  "id": "apcomics",
+  "name": "AP Comics",
+  "lang": "en",
+  "baseUrl": "https://apcomics.org",
+  "version": "1.0.0",
+  "nsfw": true
+}

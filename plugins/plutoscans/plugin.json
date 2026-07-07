@@ -1,0 +1,8 @@
+{
+  "id": "plutoscans",
+  "name": "FlameScans.lol",
+  "lang": "en",
+  "baseUrl": "https://flamescans.lol",
+  "version": "1.0.0",
+  "nsfw": false
+}

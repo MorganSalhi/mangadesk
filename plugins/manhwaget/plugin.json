@@ -1,0 +1,8 @@
+{
+  "id": "manhwaget",
+  "name": "ManhwaGet",
+  "lang": "en",
+  "baseUrl": "https://manhwaget.com",
+  "version": "1.0.0",
+  "nsfw": false
+}

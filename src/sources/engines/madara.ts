@@ -10,6 +10,14 @@ import type {
   Source,
 } from '../../types'
 import { createTransport, type Transport } from './cfTransport'
+import {
+  DESKTOP_UA,
+  inputOptions,
+  parseRelativeDate,
+  parseScanStatus,
+  str,
+  strList,
+} from './scrape'
 import { pickRandom, probeMaxPage } from './randomCatalog'
 
 // ============================================================================
@@ -20,9 +28,6 @@ import { pickRandom, probeMaxPage } from './randomCatalog'
 // par `MadaraConfig`. Valeurs par défaut = comportement Madara standard de
 // Tachiyomi/Keiyoushi. Cf. SESSION7 pour la méthode (config tirée de Keiyoushi).
 // ============================================================================
-
-const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 export interface MadaraConfig {
   id: string
@@ -51,6 +56,8 @@ export interface MadaraConfig {
   htmlVia?: 'fetch' | 'navigate'
   /** UA imposé (solveur + reqwest), si la source en exige un de spécifique. */
   userAgent?: string
+  /** false si le site n'a pas de listing « dernières sorties » (défaut true). */
+  supportsLatest?: boolean
 }
 
 function imgSrc(el: Element | null): string {
@@ -63,46 +70,6 @@ function imgSrc(el: Element | null): string {
     el.getAttribute('src') ??
     ''
   ).trim()
-}
-
-function parseStatus(text: string): Manga['status'] {
-  const t = text.toLowerCase()
-  if (!t) return 'unknown'
-  if (t.includes('en cours') || t.includes('ongoing') || t.includes('publishing')) return 'ongoing'
-  if (t.includes('terminé') || t.includes('completed') || t.includes('fini') || t.includes('finished'))
-    return 'completed'
-  if (t.includes('hiatus') || t.includes('pause')) return 'hiatus'
-  if (t.includes('annul') || t.includes('cancelled') || t.includes('abandonn')) return 'cancelled'
-  return 'unknown'
-}
-
-function parseDate(text: string): number {
-  const trimmed = text.trim()
-  if (!trimmed) return 0
-  const direct = Date.parse(trimmed)
-  if (!Number.isNaN(direct)) return direct
-  const rel = trimmed
-    .toLowerCase()
-    .match(/(\d+)\s*(jour|day|heure|hour|min|seconde|second|semaine|week|mois|month|an|year)/)
-  if (rel) {
-    const n = parseInt(rel[1], 10)
-    const u = rel[2]
-    const f = u.startsWith('second')
-      ? 1000
-      : u.startsWith('min')
-        ? 60_000
-        : u.startsWith('heure') || u.startsWith('hour')
-          ? 3_600_000
-          : u.startsWith('jour') || u.startsWith('day')
-            ? 86_400_000
-            : u.startsWith('semaine') || u.startsWith('week')
-              ? 7 * 86_400_000
-              : u.startsWith('mois') || u.startsWith('month')
-                ? 30 * 86_400_000
-                : 365 * 86_400_000
-    return Date.now() - n * f
-  }
-  return 0
 }
 
 // --- Filtres (session 13) ----------------------------------------------------
@@ -126,14 +93,6 @@ const MADARA_STATUS_FALLBACK: FilterOption[] = [
   { value: 'canceled', label: 'Annulé' },
 ]
 
-function strList(v: FilterValues[string]): string[] {
-  return Array.isArray(v) ? v : []
-}
-
-function str(v: FilterValues[string]): string {
-  return typeof v === 'string' ? v.trim() : ''
-}
-
 export class MadaraSource implements Source {
   readonly id: string
   readonly name: string
@@ -141,7 +100,7 @@ export class MadaraSource implements Source {
   readonly baseUrl: string
   readonly version: string
   readonly isNsfw: boolean
-  readonly supportsLatest = true
+  readonly supportsLatest: boolean
   filters: SourceFilterDef[]
 
   /** Promesse mémoïsée de chargement des filtres dynamiques (genres du site). */
@@ -164,6 +123,7 @@ export class MadaraSource implements Source {
     this.lang = config.lang ?? 'fr'
     this.version = config.version ?? '1.0.0'
     this.isNsfw = config.isNsfw ?? false
+    this.supportsLatest = config.supportsLatest ?? true
     const archiveSub = config.archiveSub ?? 'manga'
     this.cfg = {
       archiveSub,
@@ -215,31 +175,9 @@ export class MadaraSource implements Source {
       )
       const doc = new DOMParser().parseFromString(html, 'text/html')
 
-      const labelFor = (input: Element): string => {
-        const id = input.getAttribute('id')
-        const label = id ? doc.querySelector(`label[for="${id}"]`) : null
-        return (
-          label?.textContent?.trim() ||
-          input.parentElement?.textContent?.trim() ||
-          input.getAttribute('value') ||
-          ''
-        )
-      }
-      const checkboxOptions = (name: string): FilterOption[] => {
-        const seen = new Set<string>()
-        const options: FilterOption[] = []
-        doc.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
-          const value = input.getAttribute('value') ?? ''
-          if (!value || seen.has(value)) return
-          seen.add(value)
-          options.push({ value, label: labelFor(input) || value })
-        })
-        return options
-      }
-
       const defs: SourceFilterDef[] = [...this.staticFilterDefs()]
 
-      const genres = checkboxOptions('genre[]')
+      const genres = inputOptions(doc, 'genre[]')
       if (genres.length > 0) {
         defs.push({ id: 'genres', name: 'Genres', type: 'multiselect', options: genres })
         defs.push({
@@ -250,7 +188,7 @@ export class MadaraSource implements Source {
         })
       }
 
-      const statuses = checkboxOptions('status[]')
+      const statuses = inputOptions(doc, 'status[]')
       defs.push({
         id: 'status',
         name: 'Statut',
@@ -272,7 +210,7 @@ export class MadaraSource implements Source {
         })
       }
 
-      const releases = checkboxOptions('release[]')
+      const releases = inputOptions(doc, 'release[]')
       if (releases.length > 0) {
         defs.push({
           id: 'release',
@@ -492,7 +430,7 @@ export class MadaraSource implements Source {
       description,
       author,
       artist,
-      status: parseStatus(statusText),
+      status: parseScanStatus(statusText),
       genres,
       inLibrary: false,
     }
@@ -536,7 +474,7 @@ export class MadaraSource implements Source {
         number,
         title: (linkEl.textContent ?? '').trim() || `Chapitre ${number}`,
         scanlator: '',
-        dateUpload: parseDate(dateText),
+        dateUpload: parseRelativeDate(dateText),
         isRead: false,
         lastPageRead: 0,
       })
@@ -562,7 +500,7 @@ export class MadaraSource implements Source {
       if (cleaned && !cleaned.endsWith('.svg')) {
         const headers: Record<string, string> = {
           Referer: url,
-          'User-Agent': this.transport.cookie ? this.transport.userAgent : UA,
+          'User-Agent': this.transport.cookie ? this.transport.userAgent : DESKTOP_UA,
         }
         if (this.transport.cookie) headers.Cookie = this.transport.cookie
         pages.push({ index, imageUrl: cleaned, headers })

@@ -1,0 +1,8 @@
+{
+  "id": "fablescans",
+  "name": "Fable Scans",
+  "lang": "en",
+  "baseUrl": "https://fablescans.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

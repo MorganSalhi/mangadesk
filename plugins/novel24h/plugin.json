@@ -1,0 +1,8 @@
+{
+  "id": "novel24h",
+  "name": "24HNovel",
+  "lang": "en",
+  "baseUrl": "https://24hnovel.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

@@ -1,0 +1,8 @@
+{
+  "id": "manhwamanhua",
+  "name": "ManhwaManhua",
+  "lang": "en",
+  "baseUrl": "https://manhwamanhua.com",
+  "version": "1.0.0",
+  "nsfw": true
+}

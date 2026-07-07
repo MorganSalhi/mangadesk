@@ -54,16 +54,24 @@ export async function loadSingleSource(filePath: string): Promise<Source | null>
     return null
   }
   try {
-    // `new Function('exports', code)` : évaluation sans accès au scope module
-    // courant (pas d'import direct), exports.default attendu côté plugin.
-    const factory = new Function('exports', code) as (exports: PluginExports) => void
+    // `new Function('exports', 'module', code)` : évaluation sans accès au
+    // scope module courant (pas d'import à l'exécution). Deux contrats :
+    // plugin manuscrit `exports.default = …` (session 5B) ou bundle esbuild
+    // CJS `module.exports = …` (plugins générés par scripts/build-plugins.mjs,
+    // session 14 — l'API Tauri y passe par window.__TAURI__).
+    const factory = new Function('exports', 'module', code) as (
+      exports: PluginExports,
+      module: { exports: PluginExports },
+    ) => void
     const exports: PluginExports = {}
-    factory(exports)
-    if (!exports.default) {
+    const module = { exports }
+    factory(exports, module)
+    const ctor = module.exports?.default ?? exports.default
+    if (!ctor) {
       console.error('[Sources] plugin sans `exports.default`:', filePath)
       return null
     }
-    const instance = new exports.default()
+    const instance = new ctor()
     if (!instance.id || !instance.name) {
       console.error('[Sources] plugin sans id/name:', filePath)
       return null

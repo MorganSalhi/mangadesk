@@ -11,6 +11,13 @@ import type {
 } from '../../types'
 import { createTransport, type Transport } from './cfTransport'
 import { probeMaxPage } from './randomCatalog'
+import {
+  DESKTOP_UA,
+  inputOptions,
+  parseScanStatus,
+  str,
+  strList,
+} from './scrape'
 
 // ============================================================================
 // Moteur MangaThemesia (WP-Mangastream / « ts_reader ») partagé.
@@ -19,9 +26,6 @@ import { probeMaxPage } from './randomCatalog'
 // Keiyoushi. Les images de lecture sont servies via un objet JS inline
 // `ts_reader.run({ sources: [{ images: [...] }] })`. Cf. SESSION7.
 // ============================================================================
-
-const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 export interface MangaThemesiaConfig {
   id: string
@@ -44,6 +48,8 @@ export interface MangaThemesiaConfig {
   htmlVia?: 'fetch' | 'navigate'
   /** UA imposé (solveur + reqwest), si la source en exige un de spécifique. */
   userAgent?: string
+  /** false si le site n'a pas de listing « dernières sorties » (défaut true). */
+  supportsLatest?: boolean
 }
 
 function imgAttr(el: Element | null): string {
@@ -56,15 +62,6 @@ function imgAttr(el: Element | null): string {
     el.getAttribute('src') ??
     ''
   ).trim()
-}
-
-function parseStatus(text: string): Manga['status'] {
-  const t = text.toLowerCase()
-  if (t.includes('en cours') || t.includes('ongoing')) return 'ongoing'
-  if (t.includes('terminé') || t.includes('completed')) return 'completed'
-  if (t.includes('abandonn') || t.includes('cancelled') || t.includes('dropped')) return 'cancelled'
-  if (t.includes('pause') || t.includes('hiatus')) return 'hiatus'
-  return 'unknown'
 }
 
 /**
@@ -116,14 +113,6 @@ const THEMESIA_SORT_OPTIONS: FilterOption[] = [
   { value: 'titlereverse', label: 'Titre (Z→A)' },
 ]
 
-function strList(v: FilterValues[string]): string[] {
-  return Array.isArray(v) ? v : []
-}
-
-function str(v: FilterValues[string]): string {
-  return typeof v === 'string' ? v.trim() : ''
-}
-
 export class MangaThemesiaSource implements Source {
   readonly id: string
   readonly name: string
@@ -131,7 +120,7 @@ export class MangaThemesiaSource implements Source {
   readonly baseUrl: string
   readonly version: string
   readonly isNsfw: boolean
-  readonly supportsLatest = true
+  readonly supportsLatest: boolean
   filters: SourceFilterDef[]
 
   /** Promesse mémoïsée de chargement des filtres dynamiques (genres du site). */
@@ -151,6 +140,7 @@ export class MangaThemesiaSource implements Source {
     this.lang = config.lang ?? 'fr'
     this.version = config.version ?? '1.0.0'
     this.isNsfw = config.isNsfw ?? false
+    this.supportsLatest = config.supportsLatest ?? true
     this.dir = config.mangaUrlDirectory ?? '/manga'
     this.authorLabel = config.authorLabel ?? 'Auteur'
     this.statusLabel = config.statusLabel ?? 'Statut'
@@ -187,32 +177,10 @@ export class MangaThemesiaSource implements Source {
       const html = await this.transport.fetchHtml(`${this.baseUrl}${this.dir}/`)
       const doc = new DOMParser().parseFromString(html, 'text/html')
 
-      const labelFor = (input: Element): string => {
-        const id = input.getAttribute('id')
-        const label = id ? doc.querySelector(`label[for="${id}"]`) : null
-        return (
-          label?.textContent?.trim() ||
-          input.parentElement?.textContent?.trim() ||
-          input.getAttribute('value') ||
-          ''
-        )
-      }
-      const inputOptions = (name: string): FilterOption[] => {
-        const seen = new Set<string>()
-        const options: FilterOption[] = []
-        doc.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
-          const value = input.getAttribute('value') ?? ''
-          if (seen.has(value)) return
-          seen.add(value)
-          options.push({ value, label: labelFor(input) || value || 'Tous' })
-        })
-        return options
-      }
-
       const defs: SourceFilterDef[] = []
 
       // Tri : options du site si présentes (radios name=order), sinon standard.
-      const orders = inputOptions('order')
+      const orders = inputOptions(doc, 'order', { keepEmptyValue: true })
       defs.push({
         id: 'sort',
         name: 'Trier par',
@@ -221,11 +189,11 @@ export class MangaThemesiaSource implements Source {
         options: orders.length > 1 ? orders : THEMESIA_SORT_OPTIONS,
       })
 
-      const genres = inputOptions('genre[]')
+      const genres = inputOptions(doc, 'genre[]')
       if (genres.length > 0) {
         defs.push({ id: 'genres', name: 'Genres', type: 'multiselect', options: genres })
       }
-      const statuses = inputOptions('status')
+      const statuses = inputOptions(doc, 'status', { keepEmptyValue: true })
       if (statuses.length > 1) {
         defs.push({
           id: 'status',
@@ -235,7 +203,7 @@ export class MangaThemesiaSource implements Source {
           options: statuses,
         })
       }
-      const types = inputOptions('type')
+      const types = inputOptions(doc, 'type', { keepEmptyValue: true })
       if (types.length > 1) {
         defs.push({ id: 'type', name: 'Type', type: 'select', default: '', options: types })
       }
@@ -400,7 +368,7 @@ export class MangaThemesiaSource implements Source {
       description,
       author,
       artist: author,
-      status: parseStatus(statusText),
+      status: parseScanStatus(statusText),
       genres,
       inLibrary: false,
     }
@@ -452,7 +420,7 @@ export class MangaThemesiaSource implements Source {
 
     const headers: Record<string, string> = {
       Referer: url,
-      'User-Agent': this.transport.cookie ? this.transport.userAgent : UA,
+      'User-Agent': this.transport.cookie ? this.transport.userAgent : DESKTOP_UA,
     }
     if (this.transport.cookie) headers.Cookie = this.transport.cookie
 

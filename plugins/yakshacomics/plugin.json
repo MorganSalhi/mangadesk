@@ -1,0 +1,8 @@
+{
+  "id": "yakshacomics",
+  "name": "YakshaComics",
+  "lang": "en",
+  "baseUrl": "https://yakshacomics.com",
+  "version": "1.0.0",
+  "nsfw": false
+}

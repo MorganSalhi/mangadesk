@@ -172,7 +172,7 @@ pub async fn complete_oauth(
             if !secret.is_empty() {
                 params.push(("client_secret", secret.as_str()));
             }
-            let resp = reqwest::Client::new()
+            let resp = crate::commands::fetch::http_client()
                 .post("https://myanimelist.net/v1/oauth2/token")
                 .form(&params)
                 .send()
@@ -387,7 +387,7 @@ async fn anilist_search(query: &str) -> Result<Vec<TrackerSearchResult>, String>
       }
     }"#;
     let body = serde_json::json!({ "query": gql, "variables": { "q": query } });
-    let resp = reqwest::Client::new()
+    let resp = crate::commands::fetch::http_client()
         .post("https://graphql.anilist.co")
         .json(&body)
         .send()
@@ -420,7 +420,7 @@ async fn anilist_update_progress(remote_id: &str, progress: i64, token: &str) ->
     }"#;
     let id: i64 = remote_id.parse().map_err(|_| "remote_id AniList invalide")?;
     let body = serde_json::json!({ "query": gql, "variables": { "id": id, "p": progress } });
-    let resp = reqwest::Client::new()
+    let resp = crate::commands::fetch::http_client()
         .post("https://graphql.anilist.co")
         .bearer_auth(token)
         .json(&body)
@@ -440,7 +440,7 @@ async fn mal_search(query: &str, client_id: &str) -> Result<Vec<TrackerSearchRes
     if client_id.is_empty() {
         return Err("MAL client_id non configuré".into());
     }
-    let resp = reqwest::Client::new()
+    let resp = crate::commands::fetch::http_client()
         .get("https://api.myanimelist.net/v2/manga")
         .header("X-MAL-CLIENT-ID", client_id)
         .query(&[
@@ -480,7 +480,7 @@ async fn mal_update_progress(
         "https://api.myanimelist.net/v2/manga/{}/my_list_status",
         remote_id
     );
-    let resp = reqwest::Client::new()
+    let resp = crate::commands::fetch::http_client()
         .patch(url)
         .bearer_auth(token)
         .form(&[("num_chapters_read", progress.to_string())])

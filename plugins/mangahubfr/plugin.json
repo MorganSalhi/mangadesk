@@ -1,0 +1,8 @@
+{
+  "id": "mangahubfr",
+  "name": "MangaHub.fr",
+  "lang": "fr",
+  "baseUrl": "https://mangahub.fr",
+  "version": "1.0.0",
+  "nsfw": true
+}

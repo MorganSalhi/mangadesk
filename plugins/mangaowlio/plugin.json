@@ -1,0 +1,8 @@
+{
+  "id": "mangaowlio",
+  "name": "MangaOwl.io (unoriginal)",
+  "lang": "en",
+  "baseUrl": "https://mangaowl.io",
+  "version": "1.0.0",
+  "nsfw": true
+}

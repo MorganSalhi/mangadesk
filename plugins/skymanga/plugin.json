@@ -1,0 +1,8 @@
+{
+  "id": "skymanga",
+  "name": "Sky Manga",
+  "lang": "en",
+  "baseUrl": "https://skymanga.work",
+  "version": "1.0.0",
+  "nsfw": true
+}

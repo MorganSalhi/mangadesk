@@ -1,0 +1,8 @@
+{
+  "id": "arenascans",
+  "name": "Arena Scans",
+  "lang": "en",
+  "baseUrl": "https://arenascan.com",
+  "version": "1.0.0",
+  "nsfw": false
+}
