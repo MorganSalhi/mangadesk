@@ -310,6 +310,25 @@ pub async fn update_chapter_progress(
     Ok(())
 }
 
+/// Persiste le nombre de pages d'un chapitre (écrit par le lecteur dès que la
+/// liste des pages est connue). Permet à la reprise (« Lire ») de distinguer
+/// un chapitre relu TERMINÉ (last_page_read = dernière page) d'un chapitre
+/// coupé au milieu — `is_read` seul ne suffit pas après « Marquer tout lu ».
+#[tauri::command]
+pub async fn set_chapter_pages_count(
+    pool: State<'_, SqlitePool>,
+    chapter_id: String,
+    count: i64,
+) -> Result<(), String> {
+    sqlx::query("UPDATE chapters SET pages_count = ? WHERE id = ?")
+        .bind(count)
+        .bind(chapter_id)
+        .execute(&*pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------
@@ -545,6 +564,32 @@ pub async fn get_history_by_manga(
     )
     .bind(limit.unwrap_or(500))
     .fetch_all(&*pool)
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[derive(Serialize, FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct LastReadChapterRow {
+    pub chapter_id: String,
+    pub last_read: i64,
+}
+
+/// Dernier chapitre OUVERT d'un manga (entrée d'historique la plus récente).
+/// C'est l'ancre de la reprise « Lire » : contrairement à `is_read` /
+/// `last_page_read` (pollués par « Marquer tout lu » ou les relectures),
+/// l'historique reflète toujours la dernière activité réelle.
+#[tauri::command]
+pub async fn get_last_read_chapter(
+    pool: State<'_, SqlitePool>,
+    manga_id: String,
+) -> Result<Option<LastReadChapterRow>, String> {
+    sqlx::query_as::<_, LastReadChapterRow>(
+        "SELECT chapter_id, last_read FROM history WHERE manga_id = ? \
+         ORDER BY last_read DESC LIMIT 1",
+    )
+    .bind(manga_id)
+    .fetch_optional(&*pool)
     .await
     .map_err(|e| e.to_string())
 }

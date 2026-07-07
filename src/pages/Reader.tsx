@@ -250,6 +250,12 @@ export default function Reader() {
         if (cancelled) return
         setPages(pageList)
         setLoading(false)
+        // Persiste le nombre de pages : la reprise (« Lire ») s'en sert pour
+        // savoir si un chapitre relu est terminé ou coupé au milieu.
+        void invoke('set_chapter_pages_count', {
+          chapterId,
+          count: pageList.length,
+        }).catch(() => {})
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e)
         if (!cancelled) setError(`Échec du chargement des pages : ${msg}`)

@@ -33,6 +33,8 @@ export interface Chapter {
   dateUpload: number
   isRead: boolean
   lastPageRead: number
+  /** Nombre de pages, persisté à la lecture (absent tant que jamais ouvert). */
+  pagesCount?: number | null
 }
 
 export interface Page {

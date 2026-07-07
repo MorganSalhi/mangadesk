@@ -27,14 +27,36 @@ const STATUS_LABEL: Record<Manga['status'], string> = {
 }
 
 /**
- * Détermine où reprendre la lecture (Bug 3) :
- *  1. dernier chapitre en cours (non lu + page entamée) → à sa page,
- *  2. sinon premier chapitre non lu → page 0,
- *  3. sinon (tout lu) → premier chapitre, page 0.
+ * Détermine où reprendre la lecture (Bug 3, refondu S15) :
+ *  1. dernier chapitre OUVERT (historique) : coupé au milieu → à sa page ;
+ *     terminé → chapitre suivant. `is_read`/`last_page_read` seuls ne suffisent
+ *     pas : « Marquer tout lu » pose is_read=1 partout, et une relecture ne
+ *     le remet pas à 0 — l'historique, lui, reflète la dernière activité réelle.
+ *  2. sans historique exploitable : dernier chapitre non lu entamé → à sa page,
+ *  3. sinon premier chapitre non lu → page 0,
+ *  4. sinon (tout lu) → premier chapitre, page 0.
  */
-function getResumeChapter(chapters: Chapter[]): { chapter: Chapter; page: number } | null {
+export function getResumeChapter(
+  chapters: Chapter[],
+  lastReadChapterId?: string | null,
+): { chapter: Chapter; page: number } | null {
   if (chapters.length === 0) return null
   const sorted = [...chapters].sort((a, b) => a.number - b.number)
+
+  const last = lastReadChapterId ? sorted.find((c) => c.id === lastReadChapterId) : undefined
+  if (last) {
+    // Terminé = dernière page atteinte (pagesCount connu), ou marqué lu sans
+    // jamais avoir été ouvert depuis (pagesCount inconnu ET aucune position —
+    // un chapitre ouvert persiste toujours son pagesCount, cf. Reader).
+    const atEnd = last.pagesCount != null && last.lastPageRead >= last.pagesCount - 1
+    const finished =
+      atEnd || (last.pagesCount == null && last.isRead && last.lastPageRead === 0)
+    if (!finished) return { chapter: last, page: last.lastPageRead }
+    const next = sorted[sorted.indexOf(last) + 1]
+    if (next) return { chapter: next, page: 0 }
+    // Dernier chapitre de la liste terminé → replis classiques ci-dessous.
+  }
+
   const inProgress = [...sorted].reverse().find((ch) => !ch.isRead && ch.lastPageRead > 0)
   if (inProgress) return { chapter: inProgress, page: inProgress.lastPageRead }
   const firstUnread = sorted.find((ch) => !ch.isRead)
@@ -201,9 +223,20 @@ export default function MangaDetail() {
     navigate(`/reader/${mangaId}/${chapterId}/${sourceId}`)
   }
 
-  function startReading() {
-    const resume = getResumeChapter(chapters)
-    if (resume && mangaId && sourceId) {
+  async function startReading() {
+    if (!mangaId || !sourceId || chapters.length === 0) return
+    // Ancre de reprise : dernier chapitre réellement ouvert (historique).
+    let lastReadId: string | null = null
+    try {
+      const row = await invoke<{ chapterId: string } | null>('get_last_read_chapter', {
+        mangaId,
+      })
+      lastReadId = row?.chapterId ?? null
+    } catch {
+      /* backend absent : replis de getResumeChapter */
+    }
+    const resume = getResumeChapter(chapters, lastReadId)
+    if (resume) {
       navigate(
         `/reader/${mangaId}/${resume.chapter.id}/${sourceId}?startPage=${resume.page}`,
       )
@@ -322,7 +355,7 @@ export default function MangaDetail() {
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={startReading}
+              onClick={() => void startReading()}
               disabled={chapters.length === 0}
               className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >

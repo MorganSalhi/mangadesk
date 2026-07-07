@@ -16,6 +16,7 @@ export interface ChapterRow {
   date_upload: number | null
   is_read: number
   last_page_read: number
+  pages_count: number | null
 }
 
 /**
@@ -50,5 +51,6 @@ export function toChapter(r: ChapterRow): Chapter {
     dateUpload: r.date_upload ?? 0,
     isRead: r.is_read === 1,
     lastPageRead: r.last_page_read,
+    pagesCount: r.pages_count,
   }
 }
