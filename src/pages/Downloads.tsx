@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { save } from '@tauri-apps/plugin-dialog'
 import {
@@ -8,8 +8,12 @@ import {
 } from '../store/downloadStore'
 
 // ============================================================================
-// Page Téléchargements — file d'attente temps réel (events Rust), avec
-// pause / reprise / annulation et export CBZ des chapitres terminés.
+// Page Téléchargements — deux sections :
+// - « File d'attente » : tâches actives (events Rust temps réel), avec
+//   pause / reprise / annulation.
+// - « Téléchargés » : chapitres terminés PERSISTÉS (table downloads) — la file
+//   Rust ne vit qu'en mémoire, donc après un redémarrage seuls ces enregistrements
+//   savent ce qui est sur le disque. Export CBZ depuis cette liste.
 // ============================================================================
 
 const STATUS_LABEL: Record<DownloadStatus, string> = {
@@ -28,14 +32,25 @@ const STATUS_COLOR: Record<DownloadStatus, string> = {
   error: 'text-red-400',
 }
 
-async function exportCbz(task: DownloadTask): Promise<void> {
+/** Ligne renvoyée par `get_completed_downloads` (jointure chapters/manga). */
+interface CompletedDownload {
+  chapterId: string
+  mangaId: string
+  totalPages: number | null
+  updatedAt: number
+  number: number | null
+  mangaTitle: string | null
+  sourceId: string | null
+}
+
+async function exportCbz(chapterId: string): Promise<void> {
   try {
     const outputPath = await save({
-      defaultPath: `${task.chapterId}.cbz`,
+      defaultPath: `${chapterId}.cbz`,
       filters: [{ name: 'Comic Book ZIP', extensions: ['cbz'] }],
     })
     if (!outputPath) return
-    await invoke('export_chapter_cbz', { chapterId: task.chapterId, outputPath })
+    await invoke('export_chapter_cbz', { chapterId, outputPath })
   } catch (e) {
     console.error('Export CBZ échoué', e)
   }
@@ -47,13 +62,27 @@ export default function Downloads() {
   const pauseDownload = useDownloadStore((s) => s.pauseDownload)
   const resumeDownload = useDownloadStore((s) => s.resumeDownload)
   const cancelDownload = useDownloadStore((s) => s.cancelDownload)
-  const clearCompleted = useDownloadStore((s) => s.clearCompleted)
+
+  const [completed, setCompleted] = useState<CompletedDownload[]>([])
 
   useEffect(() => {
     void refreshQueue()
   }, [refreshQueue])
 
-  const hasCompleted = queue.some((t) => t.status === 'completed')
+  // Terminés persistés : au montage, puis à chaque complétion en direct
+  // (record_download vient d'écrire la ligne côté DB).
+  const completedInQueue = queue.filter((t) => t.status === 'completed').length
+  useEffect(() => {
+    invoke<CompletedDownload[]>('get_completed_downloads')
+      .then(setCompleted)
+      .catch(() => {
+        /* backend absent */
+      })
+  }, [completedInQueue])
+
+  // File visible = tâches non terminées (les terminées vivent dans la
+  // section persistée en dessous — sinon elles seraient affichées en double).
+  const active = useMemo(() => queue.filter((t) => t.status !== 'completed'), [queue])
 
   return (
     <div className="flex h-full flex-col">
@@ -61,83 +90,114 @@ export default function Downloads() {
         <h1 className="mr-auto text-2xl font-semibold tracking-tight text-content">
           Téléchargements
         </h1>
-        {hasCompleted && (
-          <button
-            type="button"
-            onClick={clearCompleted}
-            className="rounded-lg border border-line/10 bg-surface-raised px-3 py-1.5 text-sm text-content hover:bg-fill/10"
-          >
-            Effacer les terminés
-          </button>
-        )}
       </header>
 
       <div className="flex-1 overflow-y-auto px-6 py-5">
-        {queue.length === 0 ? (
-          <p className="mt-10 text-center text-sm text-content-4">
-            Aucun téléchargement en cours.
-          </p>
-        ) : (
-          <div className="flex flex-col divide-y divide-line/5">
-            {queue.map((task) => {
-              const pct =
-                task.total > 0 ? Math.round((task.progress / task.total) * 100) : 0
-              return (
-                <div key={task.chapterId} className="flex items-center gap-3 py-3">
+        <section>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-content-3">
+            File d'attente
+          </h2>
+          {active.length === 0 ? (
+            <p className="py-4 text-sm text-content-4">Aucun téléchargement en cours.</p>
+          ) : (
+            <div className="flex flex-col divide-y divide-line/5">
+              {active.map((task) => (
+                <ActiveRow
+                  key={task.chapterId}
+                  task={task}
+                  onPause={pauseDownload}
+                  onResume={resumeDownload}
+                  onCancel={cancelDownload}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-8">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-content-3">
+            Téléchargés ({completed.length})
+          </h2>
+          {completed.length === 0 ? (
+            <p className="py-4 text-sm text-content-4">Aucun chapitre téléchargé.</p>
+          ) : (
+            <div className="flex flex-col divide-y divide-line/5">
+              {completed.map((d) => (
+                <div key={d.chapterId} className="flex items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm text-content">
-                      {task.chapterId}
+                      {d.mangaTitle ?? d.mangaId}
+                      {d.number != null ? ` · Chapitre ${d.number}` : ''}
                     </div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-fill/10">
-                        <div
-                          className="h-full bg-accent transition-[width] duration-200"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <span className={`text-xs ${STATUS_COLOR[task.status]}`}>
-                        {STATUS_LABEL[task.status]}
-                        {task.total > 0 && task.status !== 'completed'
-                          ? ` ${task.progress}/${task.total}`
-                          : ''}
-                      </span>
+                    <div className="truncate text-xs text-content-4">
+                      {d.totalPages != null ? `${d.totalPages} pages · ` : ''}
+                      {new Date(d.updatedAt).toLocaleDateString('fr-FR')}
                     </div>
-                    {task.error && (
-                      <div className="mt-1 truncate text-xs text-red-400">{task.error}</div>
-                    )}
                   </div>
-
-                  <div className="flex shrink-0 items-center gap-2">
-                    {task.status === 'downloading' && (
-                      <IconBtn label="Pause" onClick={() => pauseDownload(task.chapterId)}>
-                        ⏸
-                      </IconBtn>
-                    )}
-                    {task.status === 'paused' && (
-                      <IconBtn label="Reprendre" onClick={() => resumeDownload(task.chapterId)}>
-                        ▶
-                      </IconBtn>
-                    )}
-                    {task.status === 'completed' && (
-                      <button
-                        type="button"
-                        onClick={() => exportCbz(task)}
-                        className="rounded-lg bg-fill/5 px-3 py-1.5 text-xs text-content hover:bg-fill/10"
-                      >
-                        Export CBZ
-                      </button>
-                    )}
-                    {task.status !== 'completed' && (
-                      <IconBtn label="Annuler" onClick={() => cancelDownload(task.chapterId)}>
-                        ✕
-                      </IconBtn>
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void exportCbz(d.chapterId)}
+                    className="shrink-0 rounded-lg bg-fill/5 px-3 py-1.5 text-xs text-content hover:bg-fill/10"
+                  >
+                    Export CBZ
+                  </button>
                 </div>
-              )
-            })}
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  )
+}
+
+function ActiveRow({
+  task,
+  onPause,
+  onResume,
+  onCancel,
+}: {
+  task: DownloadTask
+  onPause(chapterId: string): void
+  onResume(chapterId: string): void
+  onCancel(chapterId: string): void
+}) {
+  const pct = task.total > 0 ? Math.round((task.progress / task.total) * 100) : 0
+  return (
+    <div className="flex items-center gap-3 py-3">
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm text-content">{task.chapterId}</div>
+        <div className="mt-1 flex items-center gap-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-fill/10">
+            <div
+              className="h-full bg-accent transition-[width] duration-200"
+              style={{ width: `${pct}%` }}
+            />
           </div>
+          <span className={`text-xs ${STATUS_COLOR[task.status]}`}>
+            {STATUS_LABEL[task.status]}
+            {task.total > 0 ? ` ${task.progress}/${task.total}` : ''}
+          </span>
+        </div>
+        {task.error && (
+          <div className="mt-1 truncate text-xs text-red-400">{task.error}</div>
         )}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2">
+        {task.status === 'downloading' && (
+          <IconBtn label="Pause" onClick={() => onPause(task.chapterId)}>
+            ⏸
+          </IconBtn>
+        )}
+        {task.status === 'paused' && (
+          <IconBtn label="Reprendre" onClick={() => onResume(task.chapterId)}>
+            ▶
+          </IconBtn>
+        )}
+        <IconBtn label="Annuler" onClick={() => onCancel(task.chapterId)}>
+          ✕
+        </IconBtn>
       </div>
     </div>
   )

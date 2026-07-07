@@ -121,6 +121,9 @@ export default function Reader() {
   // Un fetch de page encore en file au moment du changement ne doit PAS écrire
   // son résultat dans le chapitre suivant (mêmes index → mauvaises images).
   const loadEpoch = useRef(0)
+  // Page cible de la reprise webtoon, maintenue tant que le layout bouge
+  // (cf. l'effet de ré-ancrage plus bas). null = pas de reprise en cours.
+  const resumeAnchor = useRef<number | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const pageEls = useRef<Map<number, HTMLElement>>(new Map())
   // Debounce du masquage HUD en plein écran (cf. showHud).
@@ -209,6 +212,7 @@ export default function Reader() {
     if (!mangaId || !chapterId || !sourceId) return
     let cancelled = false
     loadEpoch.current += 1
+    resumeAnchor.current = null
     inflight.current = new Set()
     pageEls.current = new Map()
     mountTime.current = Date.now()
@@ -276,12 +280,61 @@ export default function Reader() {
       const clamped = Math.min(startPage, pages.length - 1)
       setCurrentPage(clamped)
       if (isWebtoon) {
-        // Best-effort : faire défiler jusqu'à la page (élément déjà monté ou non).
+        // Le scroll initial vise des placeholders ; le ré-ancrage (effet dédié)
+        // re-scrollera à mesure que les vraies images changent le layout.
+        resumeAnchor.current = clamped
         requestAnimationFrame(() => pageEls.current.get(clamped)?.scrollIntoView())
       }
     }
     setIsReady(true)
   }, [pages.length, startPage, isWebtoon, isReady, setCurrentPage])
+
+  // -- Ré-ancrage de la reprise webtoon ----------------------------------------
+  // Les placeholders (ratio 2:3) au-dessus de la page cible sont remplacés par
+  // les vraies images (hauteurs différentes) : le contenu se décale et la
+  // position scrollée « au début » (bug de reprise). Tant que la reprise est
+  // active, on re-scrolle sur la cible à chaque image chargée, jusqu'à ce que
+  // la cible et ses voisines chargées soient rendues. Toute interaction de
+  // l'utilisateur (molette, toucher) annule le ré-ancrage.
+  useEffect(() => {
+    const target = resumeAnchor.current
+    if (!isWebtoon || target == null || pages.length === 0) return
+    pageEls.current.get(target)?.scrollIntoView({ block: 'start' })
+    // Stable quand plus rien ne peut décaler le layout au-dessus de la cible :
+    // la fenêtre target-3..target est rendue ET aucune page ≤ target n'est
+    // encore en vol (le scroll-sync fait transitoirement « plonger »
+    // currentPage pendant le ré-ancrage, ce qui élargit le préchargement).
+    let stable = true
+    for (let i = 0; i <= target && i < pages.length; i++) {
+      if (inflight.current.has(i)) stable = false
+    }
+    for (let i = Math.max(0, target - 3); i <= target && i < pages.length; i++) {
+      if (!loadedPages.has(i)) stable = false
+    }
+    if (stable) {
+      resumeAnchor.current = null
+      // Dernier ré-ancrage une fois les images décodées/rendues.
+      requestAnimationFrame(() =>
+        pageEls.current.get(target)?.scrollIntoView({ block: 'start' }),
+      )
+    }
+  }, [isWebtoon, pages.length, loadedPages])
+
+  // L'utilisateur reprend la main → on cesse de forcer la position.
+  useEffect(() => {
+    if (!isWebtoon) return
+    const root = scrollRef.current
+    if (!root) return
+    const cancel = () => {
+      resumeAnchor.current = null
+    }
+    root.addEventListener('wheel', cancel, { passive: true })
+    root.addEventListener('pointerdown', cancel)
+    return () => {
+      root.removeEventListener('wheel', cancel)
+      root.removeEventListener('pointerdown', cancel)
+    }
+  }, [isWebtoon, pages.length])
 
   // -- Préchargement -----------------------------------------------------------
   // Webtoon : fenêtre glissante autour de la page courante (3 avant, 12 après)
@@ -637,6 +690,30 @@ export default function Reader() {
                   }}
                 />
               ))}
+
+              {/* Fin de chapitre — en webtoon il n'y a ni zones de clic ni
+                  overlay déclenché par goNext() : sans ce bloc, arriver en bas
+                  du scroll ne proposait jamais le chapitre suivant. */}
+              {!isLoading && totalPages > 0 && (
+                <div className="my-8 flex flex-col items-center gap-3 self-center rounded-xl bg-black/60 px-8 py-6 text-white">
+                  <p className="text-sm text-slate-300">
+                    Fin du chapitre {chapterList[currentChapterIndex]?.number ?? ''}
+                  </p>
+                  {currentChapterIndex >= 0 && chapterList[currentChapterIndex + 1] ? (
+                    <button
+                      type="button"
+                      onClick={() => goToChapter('next')}
+                      className="rounded-lg bg-accent px-4 py-2 text-sm font-medium"
+                    >
+                      Chapitre suivant ({chapterList[currentChapterIndex + 1].number}) →
+                    </button>
+                  ) : (
+                    <p className="text-xs text-slate-400">
+                      Dernier chapitre disponible
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ) : (

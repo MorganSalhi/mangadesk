@@ -246,6 +246,7 @@ fn main() {
             commands::db::get_chapter_schedule,
             commands::db::get_new_chapter_count,
             commands::db::record_download,
+            commands::db::get_completed_downloads,
             commands::db::get_downloaded_chapter_ids,
             commands::db::get_downloaded_manga_ids,
             commands::db::delete_download,

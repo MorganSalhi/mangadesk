@@ -711,6 +711,40 @@ pub async fn record_download(
     Ok(())
 }
 
+#[derive(Serialize, FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct CompletedDownloadRow {
+    pub chapter_id: String,
+    pub manga_id: String,
+    pub total_pages: Option<i64>,
+    pub updated_at: i64,
+    pub number: Option<f64>,
+    pub manga_title: Option<String>,
+    pub source_id: Option<String>,
+}
+
+/// Téléchargements terminés PERSISTÉS (table downloads), enrichis du titre du
+/// manga et du numéro de chapitre. La file `get_download_queue` ne vit qu'en
+/// mémoire : après un redémarrage, c'est cette commande qui permet à la page
+/// Téléchargements de montrer ce qui est réellement sur le disque.
+#[tauri::command]
+pub async fn get_completed_downloads(
+    pool: State<'_, SqlitePool>,
+) -> Result<Vec<CompletedDownloadRow>, String> {
+    sqlx::query_as::<_, CompletedDownloadRow>(
+        "SELECT d.chapter_id, d.manga_id, d.total_pages, d.updated_at, \
+                c.number, m.title AS manga_title, c.source_id \
+         FROM downloads d \
+         LEFT JOIN chapters c ON c.id = d.chapter_id \
+         LEFT JOIN manga m ON m.id = d.manga_id \
+         WHERE d.status = 'completed' \
+         ORDER BY d.updated_at DESC",
+    )
+    .fetch_all(&*pool)
+    .await
+    .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn get_downloaded_chapter_ids(
     pool: State<'_, SqlitePool>,
